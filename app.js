@@ -79,9 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Form submissions
-    document.getElementById('student-login-form').addEventListener('submit', (e) => handleFormSubmit(e, 'student'));
-    document.getElementById('staff-login-form').addEventListener('submit', (e) => handleFormSubmit(e, 'staff'));
-    document.getElementById('admin-login-form').addEventListener('submit', (e) => handleFormSubmit(e, 'admin'));
+    const studentLoginForm = document.getElementById('student-login-form');
+    if (studentLoginForm) studentLoginForm.addEventListener('submit', (e) => handleFormSubmit(e, 'student'));
+    
+    const staffLoginForm = document.getElementById('staff-login-form');
+    if (staffLoginForm) staffLoginForm.addEventListener('submit', (e) => handleFormSubmit(e, 'staff'));
+    
+    const adminLoginForm = document.getElementById('admin-login-form');
+    if (adminLoginForm) adminLoginForm.addEventListener('submit', (e) => handleFormSubmit(e, 'admin'));
 
     // Sidebar navigation tabs click delegation
     document.querySelectorAll('.sidebar .nav-link').forEach(link => {
@@ -101,8 +106,11 @@ document.addEventListener('DOMContentLoaded', () => {
     setupTemplateGenerators();
 
     // Modal forms submission
-    document.getElementById('student-form').addEventListener('submit', handleStudentModalSubmit);
-    document.getElementById('staff-form').addEventListener('submit', handleStaffModalSubmit);
+    const studentFormEl = document.getElementById('student-form');
+    if (studentFormEl) studentFormEl.addEventListener('submit', handleStudentModalSubmit);
+    
+    const staffFormEl = document.getElementById('staff-form');
+    if (staffFormEl) staffFormEl.addEventListener('submit', handleStaffModalSubmit);
 
     // Smart marker controllers
     const selectCourse = document.getElementById('staff-marker-course');
@@ -118,23 +126,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Modal Cancelers
-    document.getElementById('close-student-modal').onclick = () => studentModal.classList.remove('active');
-    document.getElementById('cancel-student-modal').onclick = () => studentModal.classList.remove('active');
-    document.getElementById('close-staff-modal').onclick = () => staffModal.classList.remove('active');
-    document.getElementById('cancel-staff-modal').onclick = () => staffModal.classList.remove('active');
+    const closeStudentModal = document.getElementById('close-student-modal');
+    if (closeStudentModal) closeStudentModal.onclick = () => studentModal.classList.remove('active');
+    
+    const cancelStudentModal = document.getElementById('cancel-student-modal');
+    if (cancelStudentModal) cancelStudentModal.onclick = () => studentModal.classList.remove('active');
+    
+    const closeStaffModal = document.getElementById('close-staff-modal');
+    if (closeStaffModal) closeStaffModal.onclick = () => staffModal.classList.remove('active');
+    
+    const cancelStaffModal = document.getElementById('cancel-staff-modal');
+    if (cancelStaffModal) cancelStaffModal.onclick = () => staffModal.classList.remove('active');
 
     // Developer Console Drawer toggle
     const devToggle = document.getElementById('dev-console-toggle');
     const devDrawer = document.getElementById('dev-console-drawer');
     const devClose = document.getElementById('dev-console-close');
 
-    devToggle.addEventListener('click', () => {
-      devDrawer.classList.toggle('active');
-    });
+    if (devToggle && devDrawer) {
+      devToggle.addEventListener('click', () => {
+        devDrawer.classList.toggle('active');
+      });
+    }
 
-    devClose.addEventListener('click', () => {
-      devDrawer.classList.remove('active');
-    });
+    if (devClose && devDrawer) {
+      devClose.addEventListener('click', () => {
+        devDrawer.classList.remove('active');
+      });
+    }
   }
 
   // --- PORTAL HUB ANIMATION ROUTINES ---
