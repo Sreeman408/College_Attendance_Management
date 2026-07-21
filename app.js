@@ -461,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showLoginScreen() {
     loginScreen.classList.remove('hidden');
     appContainer.classList.add('hidden');
+    appContainer.classList.remove('active');
     showPortalHub();
     wipeDOMData();
   }
@@ -468,6 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function showAppContainer() {
     loginScreen.classList.add('hidden');
     appContainer.classList.remove('hidden');
+    appContainer.classList.add('active');
 
     navAdminSection.style.display = 'none';
     navStaffSection.style.display = 'none';
