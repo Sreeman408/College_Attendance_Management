@@ -162,12 +162,6 @@
             </a>
           </li>
           <li>
-            <a class="nav-link" data-tab="admin-uploads">
-              <i class="fa-solid fa-cloud-arrow-up"></i>
-              <span>Bulk Data Uploads</span>
-            </a>
-          </li>
-          <li>
             <a class="nav-link" data-tab="admin-edit-student">
               <i class="fa-solid fa-user-graduate"></i>
               <span>Manage Students</span>
@@ -324,64 +318,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-
-        <!-- Admin Bulk Uploads -->
-        <div class="view-panel" id="view-admin-uploads">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
-            
-            <!-- 1. Timetable -->
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title"><i class="fa-solid fa-calendar-plus"></i> Timetable Manager</h2>
-                <button class="btn btn-secondary btn-sm" id="gen-timetable-template">Template</button>
-              </div>
-              <div class="upload-wrapper">
-                <div class="upload-area" id="timetable-upload-area">
-                  <i class="fa-solid fa-file-code upload-icon"></i>
-                  <p class="upload-text">Drag timetable JSON here or <span>browse</span></p>
-                  <input type="file" id="timetable-json-input" style="display: none;" accept=".json">
-                </div>
-                <textarea id="timetable-json-text" class="code-textarea" placeholder="Paste Timetable JSON list..."></textarea>
-                <button class="btn btn-primary" id="import-timetable-text-btn">Import Timetable</button>
-              </div>
-            </div>
-
-            <!-- 2. Students -->
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title"><i class="fa-solid fa-users"></i> Students Registry Sync</h2>
-                <button class="btn btn-secondary btn-sm" id="gen-student-template">Template</button>
-              </div>
-              <div class="upload-wrapper">
-                <div class="upload-area" id="student-upload-area">
-                  <i class="fa-solid fa-user-plus upload-icon"></i>
-                  <p class="upload-text">Drag student JSON here or <span>browse</span></p>
-                  <input type="file" id="student-json-input" style="display: none;" accept=".json">
-                </div>
-                <textarea id="students-json-text" class="code-textarea" placeholder="Paste Students JSON list..."></textarea>
-                <button class="btn btn-primary" id="import-students-text-btn">Import Students</button>
-              </div>
-            </div>
-
-            <!-- 3. Faculty/Staff -->
-            <div class="card">
-              <div class="card-header">
-                <h2 class="card-title"><i class="fa-solid fa-user-tie"></i> Faculty Registry Sync</h2>
-                <button class="btn btn-secondary btn-sm" id="gen-staff-template">Template</button>
-              </div>
-              <div class="upload-wrapper">
-                <div class="upload-area" id="staff-upload-area">
-                  <i class="fa-solid fa-users-gear upload-icon"></i>
-                  <p class="upload-text">Drag staff JSON here or <span>browse</span></p>
-                  <input type="file" id="staff-json-input" style="display: none;" accept=".json">
-                </div>
-                <textarea id="staff-json-text" class="code-textarea" placeholder="Paste Faculty JSON list..."></textarea>
-                <button class="btn btn-primary" id="import-staff-text-btn">Import Faculty</button>
-              </div>
-            </div>
-
           </div>
         </div>
 

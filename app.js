@@ -97,14 +97,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    // File drag-and-drop readers setup
-    setupDragDropReader('timetable-upload-area', 'timetable-json-input', handleTimetableUpload);
-    setupDragDropReader('student-upload-area', 'student-json-input', handleStudentBulkUpload);
-    setupDragDropReader('staff-upload-area', 'staff-json-input', handleStaffBulkUpload);
-
-    // Template generators triggers
-    setupTemplateGenerators();
-
     // Modal forms submission
     const studentFormEl = document.getElementById('student-form');
     if (studentFormEl) studentFormEl.addEventListener('submit', handleStudentModalSubmit);
@@ -347,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Top Header Titles
     const titleMap = {
       'admin-dashboard': { title: 'University Overview', subtitle: 'Global academic logs & configurations' },
-      'admin-uploads': { title: 'Bulk Data Uploads', subtitle: 'Upload timetables, student registers, and staff files' },
       'admin-edit-student': { title: 'Manage Students Registry', subtitle: 'Register, edit details, or remove student profiles' },
       'admin-edit-staff': { title: 'Manage Faculty Registry', subtitle: 'Register, edit details, or remove staff profiles' },
       
@@ -648,179 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
     alert('Faculty saved successfully.');
     staffModal.classList.remove('active');
     renderAdminStaffEditor();
-  }
-
-  // --- UPLOADS CONTROLLERS (DRAG-DROP AND TEXTAREAS) ---
-  
-  function setupDragDropReader(dropAreaId, fileInputId, processCallback) {
-    const dropArea = document.getElementById(dropAreaId);
-    const input = document.getElementById(fileInputId);
-    if (!dropArea || !input) return;
-
-    dropArea.addEventListener('click', () => input.click());
-
-    dropArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropArea.classList.add('dragover');
-    });
-
-    dropArea.addEventListener('dragleave', () => {
-      dropArea.classList.remove('dragover');
-    });
-
-    dropArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropArea.classList.remove('dragover');
-      const files = e.dataTransfer.files;
-      if (files.length > 0) {
-        readFile(files[0], processCallback);
-      }
-    });
-
-    input.addEventListener('change', () => {
-      if (input.files.length > 0) {
-        readFile(input.files[0], processCallback);
-      }
-    });
-  }
-
-  function readFile(file, callback) {
-    if (!file.name.endsWith('.json')) {
-      alert("Invalid format. Please upload a JSON file.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      try {
-        const parsed = JSON.parse(e.target.result);
-        callback(parsed);
-      } catch (err) {
-        alert("Corrupt JSON file. Please check syntax structure.");
-      }
-    };
-    reader.readAsText(file);
-  }
-
-  function handleTimetableUpload(data) {
-    const success = window.CollegeDB.uploadTimetable(data);
-    if (success) {
-      alert("Timetable uploaded and synchronized successfully!");
-      document.getElementById('timetable-json-text').value = JSON.stringify(data, null, 2);
-    } else {
-      alert("Upload failed. Ensure timetable format is an array of objects.");
-    }
-  }
-
-  function handleStudentBulkUpload(data) {
-    const success = window.CollegeDB.uploadStudents(data);
-    if (success) {
-      alert(`Bulk Student Register Sync Complete: Registered/Updated ${data.length} students.`);
-      document.getElementById('students-json-text').value = JSON.stringify(data, null, 2);
-    } else {
-      alert("Format mismatched. Check student template parameters.");
-    }
-  }
-
-  function handleStaffBulkUpload(data) {
-    const success = window.CollegeDB.uploadStaff(data);
-    if (success) {
-      alert(`Bulk Staff Register Sync Complete: Registered/Updated ${data.length} professors.`);
-      document.getElementById('staff-json-text').value = JSON.stringify(data, null, 2);
-    } else {
-      alert("Format mismatched. Check staff template parameters.");
-    }
-  }
-
-  function setupTemplateGenerators() {
-    document.getElementById('gen-timetable-template').onclick = () => {
-      const template = [
-        {
-          day: "Monday",
-          time: "09:00 AM - 10:30 AM",
-          courseCode: "CS-101",
-          courseName: "Data Structures & Algorithms",
-          classroom: "Hall A",
-          professor: "Dr. Alan Turing"
-        },
-        {
-          day: "Monday",
-          time: "11:00 AM - 12:30 PM",
-          courseCode: "CS-103",
-          courseName: "Advanced Web Development",
-          classroom: "Computer Lab 3",
-          professor: "Prof. Grace Hopper"
-        }
-      ];
-      document.getElementById('timetable-json-text').value = JSON.stringify(template, null, 2);
-    };
-
-    document.getElementById('gen-student-template').onclick = () => {
-      const template = [
-        {
-          name: "Jane Doe",
-          roll: "CSE-2026-10",
-          email: "jane.doe@annamalai.edu",
-          deptId: "cse",
-          courses: ["cs101", "cs103"],
-          loginId: "student_jane",
-          password: "studentpassword"
-        },
-        {
-          name: "Michael Scott",
-          roll: "CSE-2026-11",
-          email: "m.scott@annamalai.edu",
-          deptId: "cse",
-          courses: ["cs101", "cs102"],
-          loginId: "student_michael",
-          password: "studentpassword"
-        }
-      ];
-      document.getElementById('students-json-text').value = JSON.stringify(template, null, 2);
-    };
-
-    document.getElementById('gen-staff-template').onclick = () => {
-      const template = [
-        {
-          name: "Dr. Richard Feynman",
-          email: "r.feynman@annamalai.edu",
-          deptId: "cse",
-          courses: ["cs101"],
-          loginId: "staff_richard",
-          password: "staffpassword"
-        }
-      ];
-      document.getElementById('staff-json-text').value = JSON.stringify(template, null, 2);
-    };
-
-    document.getElementById('import-timetable-text-btn').onclick = () => {
-      const val = document.getElementById('timetable-json-text').value;
-      try {
-        const parsed = JSON.parse(val);
-        handleTimetableUpload(parsed);
-      } catch (e) {
-        alert("Failed to parse Textarea JSON text.");
-      }
-    };
-
-    document.getElementById('import-students-text-btn').onclick = () => {
-      const val = document.getElementById('students-json-text').value;
-      try {
-        const parsed = JSON.parse(val);
-        handleStudentBulkUpload(parsed);
-      } catch (e) {
-        alert("Failed to parse Textarea JSON text.");
-      }
-    };
-
-    document.getElementById('import-staff-text-btn').onclick = () => {
-      const val = document.getElementById('staff-json-text').value;
-      try {
-        const parsed = JSON.parse(val);
-        handleStaffBulkUpload(parsed);
-      } catch (e) {
-        alert("Failed to parse Textarea JSON text.");
-      }
-    };
   }
 
   // ==========================================
