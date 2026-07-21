@@ -1,6 +1,6 @@
 // sw.js - Service Worker for Annamalai University CMS PWA Support
 
-const CACHE_NAME = 'au-cms-v1';
+const CACHE_NAME = 'au-cms-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -35,10 +35,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Stale-while-revalidate strategy for local assets
+  // Network-First strategy to ensure fresh code is loaded immediately
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
+    fetch(event.request)
+      .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -46,9 +46,7 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
