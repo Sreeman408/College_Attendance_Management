@@ -280,6 +280,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-staff-modal')?.addEventListener('click', () => staffModal.classList.remove('active'));
     document.getElementById('cancel-staff-modal')?.addEventListener('click', () => staffModal.classList.remove('active'));
 
+    // Course & Timetable Modals
+    const courseModal = document.getElementById('course-modal');
+    document.getElementById('course-form')?.addEventListener('submit', handleCourseModalSubmit);
+    document.getElementById('close-course-modal')?.addEventListener('click', () => courseModal.classList.remove('active'));
+    document.getElementById('cancel-course-modal')?.addEventListener('click', () => courseModal.classList.remove('active'));
+
+    const timetableModal = document.getElementById('timetable-modal');
+    document.getElementById('timetable-form')?.addEventListener('submit', handleTimetableModalSubmit);
+    document.getElementById('close-timetable-modal')?.addEventListener('click', () => timetableModal.classList.remove('active'));
+    document.getElementById('cancel-timetable-modal')?.addEventListener('click', () => timetableModal.classList.remove('active'));
+
     // Password strength meters
     document.getElementById('form-student-pass')?.addEventListener('input', (e) => updatePasswordMeter(e.target, document.getElementById('std-strength-bar')));
     document.getElementById('form-staff-pass')?.addEventListener('input', (e) => updatePasswordMeter(e.target, document.getElementById('staff-strength-bar')));
@@ -541,6 +552,8 @@ document.addEventListener('DOMContentLoaded', () => {
       'admin-uploads': { title: 'Unified Enterprise Bulk Import', subtitle: 'Multi-format transactional data synchronization' },
       'admin-edit-student': { title: 'Manage Students Registry', subtitle: 'Register, edit details, or remove student profiles' },
       'admin-edit-staff': { title: 'Manage Faculty Registry', subtitle: 'Register, edit details, or remove staff profiles' },
+      'admin-edit-course': { title: 'Manage Academic Subjects', subtitle: 'Add, edit, or remove subjects & allocate faculty' },
+      'admin-edit-timetable': { title: 'Manage Master Timetable', subtitle: 'Allocate lecture slots, classrooms & faculty professors' },
       'admin-audit': { title: 'Security Audit Trail', subtitle: 'System-wide activity and security log' },
       
       'staff-dashboard': { title: 'Faculty Dashboard', subtitle: 'Allocated classes & academic overview' },
@@ -567,6 +580,8 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'admin-audit': renderAdminAudit(); break;
       case 'admin-edit-student': renderAdminStudentEditor(); break;
       case 'admin-edit-staff': renderAdminStaffEditor(); break;
+      case 'admin-edit-course': renderAdminCourseEditor(); break;
+      case 'admin-edit-timetable': renderAdminTimetableEditor(); break;
       case 'staff-dashboard': renderStaffDashboard(); break;
       case 'staff-marker': renderStaffMarker(); break;
       case 'staff-view-pct': renderStaffStudentMetrics(); break;
@@ -845,6 +860,174 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Faculty professor saved successfully.', 'success');
     staffModal.classList.remove('active');
     renderAdminStaffEditor();
+  }
+
+  // --- ADMIN COURSE / SUBJECT EDITOR ---
+  function renderAdminCourseEditor() {
+    const courses = window.CollegeDB.getCourses();
+    const staff = window.CollegeDB.getStaff();
+    const tbody = document.getElementById('admin-courses-editor-table').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    courses.forEach(c => {
+      const assignedProfNames = staff
+        .filter(st => st.courses && st.courses.includes(c.id))
+        .map(st => st.name)
+        .join(', ');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><code>${c.code}</code></td>
+        <td><strong>${c.name}</strong></td>
+        <td style="text-transform:uppercase;">${c.deptId}</td>
+        <td><span style="font-size:0.8rem; color:var(--text-muted);">${assignedProfNames || 'Unassigned'}</span></td>
+        <td>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-sm edit-btn"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm delete-btn"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+
+      tr.querySelector('.edit-btn').onclick = () => openCourseModal(c);
+      tr.querySelector('.delete-btn').onclick = () => {
+        if (confirm(`Remove course ${c.code} - ${c.name}?`)) {
+          window.CollegeDB.deleteCourse(c.id, currentUser);
+          renderAdminCourseEditor();
+          showToast('Subject deleted.', 'info');
+        }
+      };
+
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('open-add-course-btn').onclick = () => openCourseModal();
+  }
+
+  function openCourseModal(course = null) {
+    const modal = document.getElementById('course-modal');
+    if (course) {
+      document.getElementById('course-modal-title').innerText = 'Modify Academic Subject';
+      document.getElementById('form-course-id').value = course.id;
+      document.getElementById('form-course-code').value = course.code;
+      document.getElementById('form-course-name').value = course.name;
+      document.getElementById('form-course-dept').value = course.deptId;
+    } else {
+      document.getElementById('course-modal-title').innerText = 'Add Academic Subject';
+      document.getElementById('course-form').reset();
+      document.getElementById('form-course-id').value = '';
+    }
+    modal.classList.add('active');
+  }
+
+  function handleCourseModalSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('form-course-id').value;
+    const code = document.getElementById('form-course-code').value.trim();
+    const name = document.getElementById('form-course-name').value.trim();
+    const deptId = document.getElementById('form-course-dept').value;
+
+    window.CollegeDB.addOrUpdateCourse({ id, code, name, deptId }, currentUser);
+    showToast('Subject saved successfully.', 'success');
+    document.getElementById('course-modal').classList.remove('active');
+    renderAdminCourseEditor();
+  }
+
+  // --- ADMIN TIMETABLE SCHEDULE EDITOR ---
+  function renderAdminTimetableEditor() {
+    const timetable = window.CollegeDB.getTimetable();
+    const tbody = document.getElementById('admin-timetable-editor-table').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    timetable.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${t.day}</strong></td>
+        <td>${t.time}</td>
+        <td><code>${t.courseCode}</code></td>
+        <td>${t.courseName}</td>
+        <td><span class="badge badge-info">${t.classroom}</span></td>
+        <td><strong>${t.professor}</strong></td>
+        <td>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-sm edit-btn"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm delete-btn"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+
+      tr.querySelector('.edit-btn').onclick = () => openTimetableModal(t);
+      tr.querySelector('.delete-btn').onclick = () => {
+        if (confirm(`Remove timetable slot for ${t.courseCode} on ${t.day} (${t.time})?`)) {
+          window.CollegeDB.deleteTimetableSlot(t, currentUser);
+          renderAdminTimetableEditor();
+          showToast('Lecture slot removed.', 'info');
+        }
+      };
+
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('open-add-timetable-btn').onclick = () => openTimetableModal();
+  }
+
+  function openTimetableModal(slot = null) {
+    const modal = document.getElementById('timetable-modal');
+    const courses = window.CollegeDB.getCourses();
+    const staff = window.CollegeDB.getStaff();
+
+    const courseSel = document.getElementById('form-tt-course');
+    courseSel.innerHTML = '';
+    courses.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.code;
+      opt.innerText = `${c.code} - ${c.name}`;
+      courseSel.appendChild(opt);
+    });
+
+    const profSel = document.getElementById('form-tt-prof');
+    profSel.innerHTML = '';
+    staff.forEach(st => {
+      const opt = document.createElement('option');
+      opt.value = st.name;
+      opt.innerText = `${st.name} (${st.deptId.toUpperCase()})`;
+      profSel.appendChild(opt);
+    });
+
+    if (slot) {
+      document.getElementById('timetable-modal-title').innerText = 'Modify Timetable Slot';
+      document.getElementById('form-timetable-id').value = slot.id || '';
+      document.getElementById('form-tt-day').value = slot.day;
+      document.getElementById('form-tt-time').value = slot.time;
+      document.getElementById('form-tt-course').value = slot.courseCode;
+      document.getElementById('form-tt-room').value = slot.classroom;
+      document.getElementById('form-tt-prof').value = slot.professor;
+    } else {
+      document.getElementById('timetable-modal-title').innerText = 'Allocate Timetable Lecture Slot';
+      document.getElementById('timetable-form').reset();
+      document.getElementById('form-timetable-id').value = '';
+    }
+
+    modal.classList.add('active');
+  }
+
+  function handleTimetableModalSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('form-timetable-id').value;
+    const day = document.getElementById('form-tt-day').value;
+    const time = document.getElementById('form-tt-time').value.trim();
+    const courseCode = document.getElementById('form-tt-course').value;
+    const classroom = document.getElementById('form-tt-room').value.trim();
+    const professor = document.getElementById('form-tt-prof').value;
+
+    const courses = window.CollegeDB.getCourses();
+    const cObj = courses.find(c => c.code === courseCode);
+    const courseName = cObj ? cObj.name : courseCode;
+
+    window.CollegeDB.addOrUpdateTimetableSlot({ id, day, time, courseCode, courseName, classroom, professor }, currentUser);
+    showToast('Lecture slot saved successfully.', 'success');
+    document.getElementById('timetable-modal').classList.remove('active');
+    renderAdminTimetableEditor();
   }
 
   // ==========================================

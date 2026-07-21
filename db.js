@@ -500,6 +500,56 @@
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'STAFF_DELETE', `Deleted staff ${st ? st.name : staffId}`);
     }
 
+    // --- COURSE MANAGEMENT ---
+    addOrUpdateCourse(c, user) {
+      if (c.id) {
+        const idx = this.data.courses.findIndex(x => x.id === c.id);
+        if (idx !== -1) {
+          this.data.courses[idx] = { ...this.data.courses[idx], ...c };
+        }
+      } else {
+        c.id = 'course_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        this.data.courses.push(c);
+      }
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'COURSE_UPDATE', `Saved course ${c.code} (${c.name})`);
+    }
+
+    deleteCourse(courseId, user) {
+      const c = this.data.courses.find(x => x.id === courseId);
+      this.data.courses = this.data.courses.filter(x => x.id !== courseId);
+      this.data.students.forEach(s => {
+        if (s.courses) s.courses = s.courses.filter(id => id !== courseId);
+      });
+      this.data.staff.forEach(st => {
+        if (st.courses) st.courses = st.courses.filter(id => id !== courseId);
+      });
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'COURSE_DELETE', `Deleted course ${c ? c.code : courseId}`);
+    }
+
+    // --- TIMETABLE MANAGEMENT ---
+    addOrUpdateTimetableSlot(slot, user) {
+      if (slot.id) {
+        const idx = this.data.timetable.findIndex(x => x.id === slot.id);
+        if (idx !== -1) {
+          this.data.timetable[idx] = { ...this.data.timetable[idx], ...slot };
+        }
+      } else {
+        slot.id = 'slot_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        this.data.timetable.push(slot);
+      }
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'TIMETABLE_UPDATE', `Saved timetable slot ${slot.courseCode} on ${slot.day} (${slot.time})`);
+    }
+
+    deleteTimetableSlot(slotId, user) {
+      const slot = this.data.timetable.find(x => x.id === slotId || (x.day === slotId.day && x.time === slotId.time && x.courseCode === slotId.courseCode));
+      this.data.timetable = this.data.timetable.filter(x => x !== slot && x.id !== slotId);
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'TIMETABLE_DELETE', `Deleted timetable slot`);
+    }
+
     // --- STAFF ACTIONS ---
     saveAttendanceSession(courseId, date, records, user) {
       this.data.attendance = this.data.attendance.filter(
