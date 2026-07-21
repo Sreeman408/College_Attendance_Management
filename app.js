@@ -375,7 +375,11 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser = result.user;
       currentRole = result.role;
 
-      sessionStorage.setItem('au_session', JSON.stringify({ role: currentRole, id: currentUser.id }));
+      sessionStorage.setItem('au_session', JSON.stringify({ 
+        role: currentRole, 
+        id: currentUser.id,
+        wardId: currentUser.ward ? currentUser.ward.id : null
+      }));
       window.CollegeDB.logAudit(currentUser.id, currentUser.name, currentRole, 'LOGIN', 'Authenticated portal session successfully.');
       showToast(`Welcome back, ${currentUser.name}!`, 'success');
       showAppContainer();
@@ -429,7 +433,17 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (sess.role === 'student') {
         userObj = window.CollegeDB.getStudents().find(s => s.id === sess.id);
       } else if (sess.role === 'parent') {
-        userObj = { id: sess.id, name: 'Parent', role: 'parent' };
+        const wardId = sess.wardId || (sess.id ? sess.id.replace('parent_', '') : '');
+        const wardStudent = window.CollegeDB.getStudents().find(s => s.id === wardId || s.loginId === wardId || s.roll === wardId);
+        if (wardStudent) {
+          userObj = {
+            id: 'parent_' + wardStudent.id,
+            name: `Parent of ${wardStudent.name}`,
+            email: `guardian.${wardStudent.email}`,
+            wardStudentId: wardStudent.id,
+            ward: wardStudent
+          };
+        }
       }
 
       if (userObj) {
@@ -1287,8 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dayEl.className = 'calendar-day';
       dayEl.innerText = day;
 
-      // Sample status mapping for demonstration
-      const rec = attRecords[day % attRecords.length];
+      const rec = attRecords.length > 0 ? attRecords[day % attRecords.length] : null;
       if (rec) {
         dayEl.classList.add(`day-${rec.status}`);
         dayEl.title = `Day ${day}: ${rec.status.toUpperCase()}`;
@@ -1303,6 +1316,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const courseId = document.getElementById('leave-course-select').value;
     const date = document.getElementById('leave-date-input').value;
     const reason = document.getElementById('leave-reason-input').value.trim();
+
+    if (!courseId) {
+      showToast('Select a subject first.', 'warning');
+      return;
+    }
 
     window.CollegeDB.addLeaveRequest(currentUser.id, courseId, date, reason);
     showToast('Leave application submitted successfully.', 'success');
@@ -1332,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderStudentTimetable() {
     const timetable = window.CollegeDB.getTimetable();
     const courses = window.CollegeDB.getCourses();
-    const myCourseCodes = currentUser.courses.map(cId => {
+    const myCourseCodes = (currentUser.courses || []).map(cId => {
       const cObj = courses.find(c => c.id === cId);
       return cObj ? cObj.code : '';
     });
@@ -1357,8 +1375,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- REPORT EXPORTERS (CSV, XLSX, .ICS) ---
   function exportStudentReport(format) {
+    if (!currentUser || !currentUser.id) return;
     const stats = window.CollegeDB.getStudentStats(currentUser.id);
-    if (!stats) return;
+    if (!stats || !stats.courseStats || stats.courseStats.length === 0) {
+      showToast('No course records available to export.', 'warning');
+      return;
+    }
 
     const exportData = stats.courseStats.map(cs => ({
       'Student Name': currentUser.name,
@@ -1375,13 +1397,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const ws = XLSX.utils.json_to_sheet(exportData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Attendance Report');
-      XLSX.writeFile(wb, `${currentUser.roll}_Attendance_Report.${format}`);
+      XLSX.writeFile(wb, `${currentUser.roll || 'Student'}_Attendance_Report.${format}`);
       showToast(`Exported ${format.toUpperCase()} attendance report.`, 'success');
     }
   }
 
   function exportCalendarICS() {
-    const timetable = window.CollegeDB.getTimetable();
+    let timetable = window.CollegeDB.getTimetable();
+    if (currentUser && currentUser.courses) {
+      const courses = window.CollegeDB.getCourses();
+      const myCodes = currentUser.courses.map(cId => {
+        const cObj = courses.find(c => c.id === cId);
+        return cObj ? cObj.code : '';
+      });
+      timetable = timetable.filter(t => myCodes.includes(t.courseCode));
+    }
+
     let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Annamalai University//CMS Timetable//EN\n";
 
     timetable.forEach(slot => {
