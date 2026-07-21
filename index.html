@@ -3,15 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Annamalai University College Management System. Secure portal entries for Student, Faculty, and Admin registry.">
+  <meta name="description" content="Annamalai University College Management System. Secure portal entries for Student, Parent, Faculty, and Admin registry.">
   <title>Annamalai University - College Portal Gateway</title>
+  
+  <!-- PWA & Favicon -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#800020">
   
   <!-- CSS & Libraries -->
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS XLSX Library for Excel/CSV Bulk Uploads & Exports -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- QRCode.js Library for Session QR Code Generation -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body>
+
+  <!-- Toast Notifications Container -->
+  <div id="toast-container"></div>
 
   <!-- ==================== 1. PORTAL GATEWAY SECTION ==================== -->
   <section class="login-screen" id="login-screen">
@@ -20,8 +31,8 @@
     <div class="portal-hub" id="portal-hub">
       <div class="portal-header">
         <img src="assets/logo.png" alt="Annamalai University Crest" class="portal-logo">
-        <h2 class="portal-title">Annamalai University</h2>
-        <p class="portal-subtitle">College Portal Gateway</p>
+        <h2 class="portal-title" data-i18n="univ_title">Annamalai University</h2>
+        <p class="portal-subtitle" data-i18n="portal_subtitle">College Portal Gateway</p>
       </div>
 
       <div class="portal-cards-grid">
@@ -30,41 +41,50 @@
           <div class="portal-card-icon">
             <i class="fa-solid fa-user-graduate"></i>
           </div>
-          <h3 class="portal-card-title">Student Portal</h3>
-          <p class="portal-card-desc">Log in to view subject-wise attendance percentages, grades, and lecture schedules.</p>
+          <h3 class="portal-card-title" data-i18n="card_student_title">Student Portal</h3>
+          <p class="portal-card-desc" data-i18n="card_student_desc">Log in to view subject-wise attendance percentages, grades, and lecture schedules.</p>
         </div>
 
-        <!-- Card 2: Staff Portal Link -->
+        <!-- Card 2: Parent Portal Link -->
+        <div class="portal-card" data-portal="parent">
+          <div class="portal-card-icon" style="color:var(--accent);">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <h3 class="portal-card-title" data-i18n="card_parent_title">Parent Gateway</h3>
+          <p class="portal-card-desc" data-i18n="card_parent_desc">Monitor ward attendance rates, shortage alerts, and approved leave records.</p>
+        </div>
+
+        <!-- Card 3: Staff Portal Link -->
         <div class="portal-card" data-portal="staff">
           <div class="portal-card-icon">
             <i class="fa-solid fa-chalkboard-user"></i>
           </div>
-          <h3 class="portal-card-title">Faculty Portal</h3>
-          <p class="portal-card-desc">Access allocated courses, update schedules, and mark/edit student attendance rosters.</p>
+          <h3 class="portal-card-title" data-i18n="card_staff_title">Faculty Portal</h3>
+          <p class="portal-card-desc" data-i18n="card_staff_desc">Access allocated courses, update schedules, and mark/edit student attendance rosters.</p>
         </div>
 
-        <!-- Card 3: Admin Portal Link -->
+        <!-- Card 4: Admin Portal Link -->
         <div class="portal-card" data-portal="admin">
           <div class="portal-card-icon">
             <i class="fa-solid fa-shield-halved"></i>
           </div>
-          <h3 class="portal-card-title">Admin Registry</h3>
-          <p class="portal-card-desc">Upload academic registers and modify course, student, or staff databases.</p>
+          <h3 class="portal-card-title" data-i18n="card_admin_title">Admin Registry</h3>
+          <p class="portal-card-desc" data-i18n="card_admin_desc">Upload academic registers and modify course, student, or staff databases.</p>
         </div>
       </div>
     </div>
 
-    <!-- Student Login Card (Initially Hidden) -->
+    <!-- Student Login Card -->
     <div class="login-card hidden" id="student-login-card">
-      <span class="back-link" data-back="student"><i class="fa-solid fa-arrow-left"></i> Back to Portals</span>
+      <span class="back-link" data-back="student"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_portals">Back to Portals</span></span>
       <div class="form-header-area">
         <img src="assets/logo.png" alt="AU Logo" class="form-logo">
-        <h3 class="form-title">Student Login</h3>
+        <h3 class="form-title" data-i18n="student_login_title">Student Login</h3>
         <span class="form-subtitle">Secure Portal Gateway</span>
       </div>
       <div class="alert-banner hidden std-error" style="padding:10px; margin-bottom:16px; font-size:0.8rem;">
         <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>Invalid Student ID or Password.</span>
+        <span id="std-error-msg">Invalid Student ID or Password.</span>
       </div>
       <form id="student-login-form" class="login-form">
         <div class="form-group">
@@ -75,23 +95,53 @@
           <label for="student-password">Password</label>
           <input type="password" id="student-password" class="form-control" placeholder="••••••••" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%; margin-top: 10px;">
+        <div style="text-align: right; margin-bottom: 10px;">
+          <a href="#" class="forgot-link" data-role="student" style="font-size:0.78rem; color:var(--primary); font-weight:500;">Forgot Password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">
           <i class="fa-solid fa-lock-open"></i> Authenticate Student
         </button>
       </form>
     </div>
 
-    <!-- Staff Login Card (Initially Hidden) -->
-    <div class="login-card hidden" id="staff-login-card">
-      <span class="back-link" data-back="staff"><i class="fa-solid fa-arrow-left"></i> Back to Portals</span>
+    <!-- Parent Login Card -->
+    <div class="login-card hidden" id="parent-login-card">
+      <span class="back-link" data-back="parent"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_portals">Back to Portals</span></span>
       <div class="form-header-area">
         <img src="assets/logo.png" alt="AU Logo" class="form-logo">
-        <h3 class="form-title">Faculty Login</h3>
+        <h3 class="form-title">Parent Gateway</h3>
+        <span class="form-subtitle">Ward Monitoring Access</span>
+      </div>
+      <div class="alert-banner hidden parent-error" style="padding:10px; margin-bottom:16px; font-size:0.8rem;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span id="parent-error-msg">Invalid Parent Credentials.</span>
+      </div>
+      <form id="parent-login-form" class="login-form">
+        <div class="form-group">
+          <label for="parent-id">Student Roll / Login ID</label>
+          <input type="text" id="parent-id" class="form-control" placeholder="e.g. parent_alice or student_alice" required>
+        </div>
+        <div class="form-group">
+          <label for="parent-password">Password</label>
+          <input type="password" id="parent-password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%; margin-top: 10px;">
+          <i class="fa-solid fa-users"></i> Authenticate Parent
+        </button>
+      </form>
+    </div>
+
+    <!-- Staff Login Card -->
+    <div class="login-card hidden" id="staff-login-card">
+      <span class="back-link" data-back="staff"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_portals">Back to Portals</span></span>
+      <div class="form-header-area">
+        <img src="assets/logo.png" alt="AU Logo" class="form-logo">
+        <h3 class="form-title" data-i18n="staff_login_title">Faculty Login</h3>
         <span class="form-subtitle">Secure Staff Portal</span>
       </div>
       <div class="alert-banner hidden staff-error" style="padding:10px; margin-bottom:16px; font-size:0.8rem;">
         <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>Invalid Faculty ID or Password.</span>
+        <span id="staff-error-msg">Invalid Faculty ID or Password.</span>
       </div>
       <form id="staff-login-form" class="login-form">
         <div class="form-group">
@@ -102,23 +152,26 @@
           <label for="staff-password">Password</label>
           <input type="password" id="staff-password" class="form-control" placeholder="••••••••" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%; margin-top: 10px;">
+        <div style="text-align: right; margin-bottom: 10px;">
+          <a href="#" class="forgot-link" data-role="staff" style="font-size:0.78rem; color:var(--primary); font-weight:500;">Forgot Password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">
           <i class="fa-solid fa-lock-open"></i> Authenticate Faculty
         </button>
       </form>
     </div>
 
-    <!-- Admin Login Card (Initially Hidden) -->
+    <!-- Admin Login Card -->
     <div class="login-card hidden" id="admin-login-card">
-      <span class="back-link" data-back="admin"><i class="fa-solid fa-arrow-left"></i> Back to Portals</span>
+      <span class="back-link" data-back="admin"><i class="fa-solid fa-arrow-left"></i> <span data-i18n="back_portals">Back to Portals</span></span>
       <div class="form-header-area">
         <img src="assets/logo.png" alt="AU Logo" class="form-logo">
-        <h3 class="form-title">Admin Registry</h3>
+        <h3 class="form-title" data-i18n="admin_login_title">Admin Registry</h3>
         <span class="form-subtitle">Registrar Credentials</span>
       </div>
       <div class="alert-banner hidden admin-error" style="padding:10px; margin-bottom:16px; font-size:0.8rem;">
         <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>Invalid Registrar Credentials.</span>
+        <span id="admin-error-msg">Invalid Registrar Credentials.</span>
       </div>
       <form id="admin-login-form" class="login-form">
         <div class="form-group">
@@ -129,7 +182,10 @@
           <label for="admin-password">Security Password</label>
           <input type="password" id="admin-password" class="form-control" placeholder="••••••••" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%; margin-top: 10px;">
+        <div style="text-align: right; margin-bottom: 10px;">
+          <a href="#" class="forgot-link" data-role="admin" style="font-size:0.78rem; color:var(--primary); font-weight:500;">Forgot Password?</a>
+        </div>
+        <button type="submit" class="btn btn-primary" style="justify-content: center; width: 100%;">
           <i class="fa-solid fa-shield-halved"></i> Unlock Registry
         </button>
       </form>
@@ -138,13 +194,12 @@
   </section>
 
   <!-- ==================== 2. SECURE APPLICATION CONTAINER SHELL ==================== -->
-  <!-- Note: All charts, student details, and dashboards are kept entirely EMPTY to prevent inspect leaks -->
-  <div class="app-container" id="app-container">
+  <div class="app-container hidden" id="app-container">
     
     <!-- Sidebar Navigation -->
     <aside class="sidebar">
       <div class="brand">
-        <img src="assets/logo.png" alt="AU Logo" class="brand-img">
+        <img src="assets/logo.png" alt="Crest" class="brand-img">
         <div class="brand-details">
           <span class="brand-title">Annamalai Univ</span>
           <span class="brand-subtitle">CMS Portal</span>
@@ -162,6 +217,12 @@
             </a>
           </li>
           <li>
+            <a class="nav-link" data-tab="admin-uploads">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+              <span>Bulk Data Import</span>
+            </a>
+          </li>
+          <li>
             <a class="nav-link" data-tab="admin-edit-student">
               <i class="fa-solid fa-user-graduate"></i>
               <span>Manage Students</span>
@@ -171,6 +232,12 @@
             <a class="nav-link" data-tab="admin-edit-staff">
               <i class="fa-solid fa-users-gear"></i>
               <span>Manage Faculty</span>
+            </a>
+          </li>
+          <li>
+            <a class="nav-link" data-tab="admin-audit">
+              <i class="fa-solid fa-list-check"></i>
+              <span>Audit Trail</span>
             </a>
           </li>
         </ul>
@@ -220,6 +287,19 @@
         </ul>
       </div>
 
+      <!-- PARENT LINKS -->
+      <div class="nav-section" id="nav-parent-section" style="display: none;">
+        <div class="nav-label">Parent Gateway</div>
+        <ul class="nav-menu">
+          <li>
+            <a class="nav-link active" data-tab="parent-dashboard">
+              <i class="fa-solid fa-users"></i>
+              <span>Ward Monitor</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
       <!-- Footer User Card -->
       <div class="sidebar-footer">
         <div class="user-display-card">
@@ -242,6 +322,12 @@
         </div>
         
         <div class="header-actions">
+          <!-- i18n Language Toggle -->
+          <button class="lang-switcher" id="lang-toggle-btn" title="Switch Language">
+            <i class="fa-solid fa-globe"></i>
+            <span id="lang-label">EN</span>
+          </button>
+
           <button class="btn-header" id="theme-toggle" title="Toggle Light/Dark Theme">
             <i class="fa-solid fa-moon"></i>
           </button>
@@ -252,7 +338,7 @@
         </div>
       </header>
 
-      <!-- Scrollbody Content (All list details will be injected dynamically on secure auth) -->
+      <!-- Scrollbody Content -->
       <div class="content-body">
 
         <!-- ==================== ADMIN PANELS ==================== -->
@@ -271,7 +357,7 @@
             </div>
             <div class="stat-card">
               <div class="stat-info">
-                <span class="stat-label">Faculty Staff</span>
+                <span class="stat-label">Faculty Professors</span>
                 <span class="stat-value" id="admin-stat-staff">-</span>
               </div>
               <div class="stat-icon gold">
@@ -280,41 +366,130 @@
             </div>
             <div class="stat-card">
               <div class="stat-info">
-                <span class="stat-label">Scheduled Lectures</span>
+                <span class="stat-label">Weekly Lectures</span>
                 <span class="stat-value" id="admin-stat-schedule">-</span>
               </div>
-              <div class="stat-icon crimson">
-                <i class="fa-solid fa-calendar-check"></i>
+              <div class="stat-icon success">
+                <i class="fa-solid fa-calendar-days"></i>
               </div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" style="border-color: var(--accent);">
               <div class="stat-info">
-                <span class="stat-label">Overall Attendance</span>
-                <span class="stat-value" id="admin-stat-avg">-%</span>
+                <span class="stat-label">University Avg</span>
+                <span class="stat-value" id="admin-stat-avg" style="color:var(--primary);">-</span>
               </div>
-              <div class="stat-icon success">
+              <div class="stat-icon crimson" style="background-color: var(--accent-light);">
                 <i class="fa-solid fa-chart-line"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-layout-2col">
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">Department Comparative Attendance Rates</h2>
+              </div>
+              <div style="height: 250px; position: relative;">
+                <canvas id="adminDeptBarChart"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title"><i class="fa-solid fa-database"></i> System Operations</h2>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <button class="btn btn-secondary" id="export-db-backup-btn"><i class="fa-solid fa-download"></i> Backup Database JSON</button>
+                <label class="btn btn-primary" style="text-align:center; cursor:pointer;">
+                  <i class="fa-solid fa-upload"></i> Restore Database JSON
+                  <input type="file" id="import-db-backup-input" style="display:none;" accept=".json">
+                </label>
+                <button class="btn btn-danger" id="reset-system-db-btn"><i class="fa-solid fa-rotate-left"></i> Reset to Factory Defaults</button>
               </div>
             </div>
           </div>
 
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">Department-wise Breakdown</h2>
+              <h2 class="card-title">Department Attendance Breakdown</h2>
             </div>
             <div class="table-responsive">
               <table class="custom-table" id="admin-dept-summary-table">
                 <thead>
                   <tr>
-                    <th>Department Name</th>
-                    <th>Code</th>
+                    <th>Department</th>
                     <th>Students Count</th>
+                    <th>Faculty Count</th>
                     <th>Average Attendance</th>
                     <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   <!-- Injected securely -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Multi-Format Unified Bulk Data Uploads -->
+        <div class="view-panel" id="view-admin-uploads">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-cloud-arrow-up"></i> Unified Enterprise Bulk Import</h2>
+              <div class="card-actions">
+                <button class="btn btn-secondary btn-sm" id="download-upload-template-btn"><i class="fa-solid fa-file-csv"></i> Download CSV Template</button>
+              </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:20px;">
+              <div>
+                <div class="form-group">
+                  <label for="upload-target-type">Target Data Model</label>
+                  <select id="upload-target-type" class="form-control">
+                    <option value="students">Student Roster Register</option>
+                    <option value="staff">Faculty Staff Registry</option>
+                    <option value="timetable">Lecture Master Timetable</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="upload-duplicate-mode">Duplicate Conflict Strategy</label>
+                  <select id="upload-duplicate-mode" class="form-control">
+                    <option value="merge">Merge & Update Existing</option>
+                    <option value="overwrite">Full Overwrite Existing</option>
+                    <option value="skip">Skip Duplicate Entries</option>
+                  </select>
+                </div>
+              </div>
+              <div class="upload-wrapper">
+                <div class="upload-area" id="unified-upload-area">
+                  <i class="fa-solid fa-file-excel upload-icon"></i>
+                  <p class="upload-text">Drag <strong>.CSV</strong>, <strong>.XLSX</strong>, or <strong>.JSON</strong> file here or <span>browse</span></p>
+                  <input type="file" id="unified-file-input" style="display: none;" accept=".json,.csv,.xlsx,.xls">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Audit Trail -->
+        <div class="view-panel" id="view-admin-audit">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-shield-cat"></i> System Activity Audit Trail</h2>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table" id="admin-audit-table">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>User ID</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>Event Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected -->
                 </tbody>
               </table>
             </div>
@@ -353,8 +528,8 @@
         <div class="view-panel" id="view-admin-edit-staff">
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">All Faculty Staff Records</h2>
-              <button class="btn btn-primary btn-sm" id="open-add-staff-btn"><i class="fa-solid fa-plus"></i> Add Staff</button>
+              <h2 class="card-title">All Faculty Professors</h2>
+              <button class="btn btn-primary btn-sm" id="open-add-staff-btn"><i class="fa-solid fa-plus"></i> Add Faculty</button>
             </div>
             <div class="table-responsive">
               <table class="custom-table" id="admin-staff-editor-table">
@@ -363,7 +538,7 @@
                     <th>Professor Name</th>
                     <th>Email Address</th>
                     <th>Department</th>
-                    <th>Allocated Courses</th>
+                    <th>Allocated Subjects</th>
                     <th>Login ID</th>
                     <th>Actions</th>
                   </tr>
@@ -380,52 +555,64 @@
 
         <!-- Staff Dashboard -->
         <div class="view-panel" id="view-staff-dashboard">
-          <div class="card" style="max-width: 700px;">
+          <div class="card">
             <div class="card-header">
-              <h2 class="card-title"><i class="fa-solid fa-book"></i> Allocated Subjects & Classrooms</h2>
+              <h2 class="card-title">Allocated Academic Subjects</h2>
             </div>
-            <div id="staff-dashboard-courses-list" style="display: flex; flex-direction: column; gap: 10px;">
+            <div id="staff-dashboard-courses-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
               <!-- Injected securely -->
             </div>
           </div>
         </div>
 
-        <!-- Staff Marker Sheet -->
+        <!-- Staff Smart Marker -->
         <div class="view-panel" id="view-staff-marker">
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">Smart Attendance Roster Marker</h2>
+              <h2 class="card-title"><i class="fa-solid fa-list-check"></i> Session Attendance Marker</h2>
             </div>
-            
-            <div style="display: flex; gap: 16px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
               <div class="form-group">
-                <label for="staff-marker-course">Select Subject</label>
-                <select id="staff-marker-course" class="form-control" style="min-width: 240px; cursor: pointer;"></select>
+                <label for="marker-course-select">Select Course</label>
+                <select id="marker-course-select" class="form-control"></select>
               </div>
               <div class="form-group">
-                <label for="staff-marker-date">Select Session Date</label>
-                <input type="date" id="staff-marker-date" class="form-control">
+                <label for="marker-date-select">Session Date</label>
+                <input type="date" id="marker-date-select" class="form-control">
+              </div>
+              <div class="form-group" style="display:flex; align-items:flex-end; gap:8px;">
+                <button class="btn btn-secondary" id="generate-qr-session-btn" title="Generate Session QR Code"><i class="fa-solid fa-qrcode"></i> QR Code</button>
+                <button class="btn btn-danger" id="mark-class-cancelled-btn" title="Mark Class Cancelled"><i class="fa-solid fa-ban"></i> Cancel Class</button>
               </div>
             </div>
 
-            <!-- Marking Sheet Grid -->
-            <div class="attendance-grid" id="staff-marker-grid">
-              <!-- Injected securely -->
+            <div class="table-responsive">
+              <table class="custom-table" id="staff-marker-table">
+                <thead>
+                  <tr>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Current Rate</th>
+                    <th>Attendance Status</th>
+                  </tr>
+                </thead>
+                <tbody id="staff-marker-grid">
+                  <!-- Injected -->
+                </tbody>
+              </table>
             </div>
 
-            <div style="margin-top: 24px; display: flex; justify-content: flex-end;">
-              <button class="btn btn-primary" id="save-staff-marker-btn">
-                <i class="fa-solid fa-cloud-arrow-up"></i> Save Roster sheet
-              </button>
+            <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 12px;">
+              <button class="btn btn-primary" id="save-attendance-btn"><i class="fa-solid fa-floppy-disk"></i> Submit & Save Session Roster</button>
             </div>
           </div>
         </div>
 
-        <!-- Staff Student Metrics -->
+        <!-- Staff View Metrics -->
         <div class="view-panel" id="view-staff-view-pct">
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">Subject-wise Student Percentages</h2>
+              <h2 class="card-title">Allocated Students Percentage Metrics</h2>
             </div>
             <div class="table-responsive">
               <table class="custom-table" id="staff-student-pct-table">
@@ -433,13 +620,14 @@
                   <tr>
                     <th>Student Name</th>
                     <th>Roll Number</th>
-                    <th>Subject Course</th>
-                    <th>Attendance Rate</th>
-                    <th>Status Check</th>
+                    <th>Subject Code</th>
+                    <th>Attended / Total</th>
+                    <th>Subject Rate</th>
+                    <th>Eligibility Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <!-- Injected securely -->
+                  <!-- Injected -->
                 </tbody>
               </table>
             </div>
@@ -451,7 +639,6 @@
         <!-- Student Dashboard -->
         <div class="view-panel" id="view-student-dashboard">
           
-          <!-- Attendance Warning Banner -->
           <div class="alert-banner" id="student-shortage-banner" style="display: none;">
             <i class="fa-solid fa-triangle-exclamation"></i>
             <div>
@@ -498,25 +685,95 @@
             </div>
           </div>
 
+          <!-- Report Export Toolbar -->
+          <div class="card" style="padding: 14px 24px; margin-bottom: 20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.88rem; font-weight:600;"><i class="fa-solid fa-file-export"></i> Download Official Statements</span>
+              <div style="display:flex; gap:8px;">
+                <button class="btn btn-secondary btn-sm" id="export-student-csv-btn"><i class="fa-solid fa-file-csv"></i> CSV Report</button>
+                <button class="btn btn-secondary btn-sm" id="export-student-xlsx-btn"><i class="fa-solid fa-file-excel"></i> Excel Report</button>
+                <button class="btn btn-primary btn-sm" id="export-student-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Print / PDF</button>
+              </div>
+            </div>
+          </div>
+
           <div class="card-layout-2col">
-            <!-- Pie Chart Card -->
             <div class="card">
               <div class="card-header">
                 <h2 class="card-title">Overall Ratios</h2>
               </div>
-              <div style="height: 280px; position: relative;">
+              <div style="height: 250px; position: relative;">
                 <canvas id="studentOverallPieChart"></canvas>
               </div>
             </div>
 
-            <!-- Bar Chart Card -->
             <div class="card">
               <div class="card-header">
-                <h2 class="card-title">Subject-wise Percentages</h2>
+                <h2 class="card-title">Subject Percentages</h2>
               </div>
-              <div style="height: 280px; position: relative;">
+              <div style="height: 250px; position: relative;">
                 <canvas id="studentSubjectBarChart"></canvas>
               </div>
+            </div>
+          </div>
+
+          <!-- ML Predictive Trajectory Line Chart -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-wand-magic-sparkles"></i> ML Attendance Prediction Trajectory</h2>
+            </div>
+            <div style="height: 220px; position: relative;">
+              <canvas id="studentPredictiveChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Attendance History Calendar Grid -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-calendar-days"></i> Monthly Attendance Pattern Calendar</h2>
+            </div>
+            <div class="calendar-container">
+              <div class="calendar-grid" id="student-calendar-grid">
+                <!-- Injected -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Leave Application System Section -->
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-envelope-open-text"></i> Leave Application System</h2>
+            </div>
+            <form id="student-leave-form" style="display:grid; grid-template-columns: 1fr 1fr 2fr auto; gap:12px; align-items:end; margin-bottom:16px;">
+              <div class="form-group" style="margin:0;">
+                <label>Course Subject</label>
+                <select id="leave-course-select" class="form-control" required></select>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Leave Date</label>
+                <input type="date" id="leave-date-input" class="form-control" required>
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label>Absence Reason</label>
+                <input type="text" id="leave-reason-input" class="form-control" placeholder="Reason for leave..." required>
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Apply</button>
+            </form>
+
+            <div class="table-responsive">
+              <table class="custom-table" id="student-leave-history-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Course</th>
+                    <th>Reason</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected -->
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -548,21 +805,49 @@
         <div class="view-panel" id="view-student-timetable">
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">My Weekly Lecture Timetable</h2>
+              <h2 class="card-title">My Weekly Lecture Schedule Grid</h2>
+              <button class="btn btn-secondary btn-sm" id="export-ics-btn"><i class="fa-solid fa-calendar-plus"></i> Export to Google/Outlook (.ics)</button>
             </div>
             <div class="table-responsive">
               <table class="custom-table" id="student-timetable-table">
                 <thead>
                   <tr>
-                    <th>Weekday</th>
-                    <th>Session Hours</th>
-                    <th>Subject</th>
+                    <th>Day</th>
+                    <th>Time Slot</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
                     <th>Classroom</th>
-                    <th>Lecturer</th>
+                    <th>Professor</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <!-- Injected securely -->
+                  <!-- Injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== PARENT PANEL ==================== -->
+        <div class="view-panel" id="view-parent-dashboard">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-users"></i> Ward Academic Attendance Monitor</h2>
+            </div>
+            <div id="parent-ward-info" style="font-size:0.95rem; margin-bottom:16px;">-</div>
+            <div class="table-responsive">
+              <table class="custom-table" id="parent-ward-table">
+                <thead>
+                  <tr>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Lectures Attended</th>
+                    <th>Attendance Rate</th>
+                    <th>Eligibility Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected -->
                 </tbody>
               </table>
             </div>
@@ -573,7 +858,79 @@
     </main>
   </div>
 
-  <!-- ==================== 3. MODALS ==================== -->
+  <!-- ==================== MODAL WINDOWS ==================== -->
+
+  <!-- Upload Preview Modal -->
+  <div class="modal-overlay" id="preview-modal">
+    <div class="modal-container" style="max-width: 800px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-magnifying-glass"></i> Pre-flight Import Data Preview</h3>
+        <button class="modal-close" id="close-preview-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-stats-bar">
+          <span class="stat-pill pill-valid" id="preview-valid-count">Valid: 0</span>
+          <span class="stat-pill pill-dup" id="preview-dup-count">Duplicates: 0</span>
+          <span class="stat-pill pill-error" id="preview-error-count">Errors: 0</span>
+        </div>
+        <div class="preview-table-container">
+          <table class="custom-table" id="preview-data-table">
+            <thead>
+              <!-- Injected -->
+            </thead>
+            <tbody>
+              <!-- Injected -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancel-preview-btn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirm-commit-upload-btn"><i class="fa-solid fa-check"></i> Commit Transactional Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div class="modal-overlay" id="forgot-modal">
+    <div class="modal-container" style="max-width: 400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Password Recovery</h3>
+        <button class="modal-close" id="close-forgot-modal">&times;</button>
+      </div>
+      <form id="forgot-form">
+        <div class="modal-body">
+          <input type="hidden" id="forgot-role">
+          <div class="form-group">
+            <label for="forgot-login-id">Login ID or Registered Email</label>
+            <input type="text" id="forgot-login-id" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="forgot-new-pass">New Password</label>
+            <input type="password" id="forgot-new-pass" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-forgot-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Session QR Code Modal -->
+  <div class="modal-overlay" id="qr-modal">
+    <div class="modal-container" style="max-width: 360px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">Smart Session QR Code</h3>
+        <button class="modal-close" id="close-qr-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+        <div id="qr-code-display" style="padding:16px; background:#fff; border-radius:12px;"></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Students can scan this code to self-register attendance for today's session.</p>
+      </div>
+    </div>
+  </div>
 
   <!-- Add/Edit Student Modal -->
   <div class="modal-overlay" id="student-modal">
@@ -617,7 +974,8 @@
 
           <div class="form-group">
             <label for="form-student-pass">Portal Password</label>
-            <input type="text" id="form-student-pass" class="form-control" required>
+            <input type="password" id="form-student-pass" class="form-control" required>
+            <div class="password-meter"><div class="strength-bar" id="std-strength-bar"></div></div>
           </div>
 
           <div class="form-group">
@@ -672,7 +1030,8 @@
 
           <div class="form-group">
             <label for="form-staff-pass">Portal Password</label>
-            <input type="text" id="form-staff-pass" class="form-control" required>
+            <input type="password" id="form-staff-pass" class="form-control" required>
+            <div class="password-meter"><div class="strength-bar" id="staff-strength-bar"></div></div>
           </div>
 
           <div class="form-group">
@@ -690,7 +1049,7 @@
     </div>
   </div>
 
-  <!-- Collapsible Developer Console Drawer -->
+  <!-- Developer Console Drawer -->
   <button class="dev-console-toggle" id="dev-console-toggle">
     <i class="fa-solid fa-terminal"></i> Developer Console
   </button>
@@ -705,6 +1064,7 @@
         <li>🛡️ <strong>Admin Card:</strong> ID: <code style="color:var(--accent);">admin101</code> | Password: <code style="color:var(--accent);">adminpassword</code></li>
         <li>🧑‍🏫 <strong>Faculty Card:</strong> ID: <code style="color:var(--accent);">staff_alan</code> | Password: <code style="color:var(--accent);">staffpassword</code></li>
         <li>🎓 <strong>Student Card:</strong> ID: <code style="color:var(--accent);">student_alice</code> | Password: <code style="color:var(--accent);">studentpassword</code></li>
+        <li>👨‍👩‍👧 <strong>Parent Card:</strong> ID: <code style="color:var(--accent);">parent_alice</code> | Password: <code style="color:var(--accent);">studentpassword</code></li>
       </ul>
     </div>
   </div>

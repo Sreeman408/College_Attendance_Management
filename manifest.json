@@ -1,0 +1,16 @@
+{
+  "name": "Annamalai University CMS",
+  "short_name": "AU CMS",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1f0007",
+  "theme_color": "#800020",
+  "description": "College Management System for Annamalai University",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png"
+    }
+  ]
+}
