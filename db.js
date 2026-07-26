@@ -589,12 +589,33 @@
       return results;
     }
 
-    // --- GETTERS ---
     getDepartments() { return this.data.departments; }
     getCourses() { return this.data.courses; }
     getAdmin() { return this.data.admin; }
     getStaff() { return this.data.staff; }
     getStudents() { return this.data.students; }
+    getParents() { return this.data.parents || []; }
+
+    linkStudentToParent(parentId, studentId, user) {
+      const parent = this.data.parents.find(p => p.id === parentId);
+      if (!parent) return { success: false, message: 'Parent not found.' };
+      if (!Array.isArray(parent.studentIds)) parent.studentIds = [];
+      if (!parent.studentIds.includes(studentId)) {
+        parent.studentIds.push(studentId);
+        this.save();
+        this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_LINK', `Linked student ${studentId} to parent ${parent.name}`);
+      }
+      return { success: true };
+    }
+
+    unlinkStudentFromParent(parentId, studentId, user) {
+      const parent = this.data.parents.find(p => p.id === parentId);
+      if (!parent) return { success: false, message: 'Parent not found.' };
+      parent.studentIds = (parent.studentIds || []).filter(id => id !== studentId);
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_UNLINK', `Unlinked student ${studentId} from parent ${parent.name}`);
+      return { success: true };
+    }
     getTimetable() {
       return (this.data.timetable || []).map(slot => {
         const course = (this.data.courses || []).find(c => c.id === slot.courseId);

@@ -1293,42 +1293,64 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- ADMIN PARENT EDITOR ---
-  function renderAdminParentEditor() {
-    const parents = window.CollegeDB.getParents();
+  let _allParentsCache = [];   // cached for live search without re-render
+
+  function renderAdminParentEditor(filterQuery = '') {
+    _allParentsCache = window.CollegeDB.getParents();
     const students = window.CollegeDB.getStudents();
     const tbody = document.getElementById('admin-parents-editor-table').querySelector('tbody');
+    const emptyMsg = document.getElementById('parent-table-empty');
+    const countBadge = document.getElementById('parent-count-badge');
     tbody.innerHTML = '';
 
-    parents.forEach(p => {
+    const q = filterQuery.toLowerCase().trim();
+    const filtered = q
+      ? _allParentsCache.filter(p =>
+          (p.name || '').toLowerCase().includes(q) ||
+          (p.loginId || '').toLowerCase().includes(q) ||
+          (p.email || '').toLowerCase().includes(q)
+        )
+      : _allParentsCache;
+
+    if (countBadge) countBadge.textContent = `${_allParentsCache.length} parent${_allParentsCache.length !== 1 ? 's' : ''}`;
+    if (emptyMsg) emptyMsg.style.display = filtered.length === 0 ? 'block' : 'none';
+
+    filtered.forEach((p, idx) => {
       const studentIds = Array.isArray(p.studentIds) ? p.studentIds : (p.studentId ? [p.studentId] : []);
-      const linkedStudentNames = students
-        .filter(s => studentIds.includes(s.id))
-        .map(s => `${s.name} (${s.roll})`)
-        .join('<br>');
+      const linkedStudents = students.filter(s => studentIds.includes(s.id));
+      const linkedHtml = linkedStudents.length > 0
+        ? linkedStudents.map(s => `<span class="badge badge-info" style="font-size:0.75rem; margin:1px 2px;">${s.name} <span style="opacity:0.75">(${s.roll})</span></span>`).join(' ')
+        : '<span style="color:var(--text-muted); font-size:0.82rem;">None linked</span>';
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${p.name}</strong></td>
-        <td><code>${p.loginId}</code></td>
-        <td>${p.email || '-'}</td>
-        <td><span style="font-size:0.82rem; color:var(--text-main);">${linkedStudentNames || 'None Linked'}</span></td>
+        <td style="color:var(--text-muted); font-size:0.82rem;">${idx + 1}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="width:34px; height:34px; border-radius:50%; background:var(--primary); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.9rem; flex-shrink:0;">${(p.name || '?')[0].toUpperCase()}</span>
+            <strong>${p.name || '—'}</strong>
+          </div>
+        </td>
+        <td><code>${p.loginId || '—'}</code></td>
+        <td style="font-size:0.85rem;">${p.email || '—'}</td>
+        <td style="max-width:240px; line-height:1.8;">${linkedHtml}</td>
         <td>
           <div style="display:flex; gap:6px;">
-            <button class="btn btn-secondary btn-sm edit-btn"><i class="fa-solid fa-pen"></i></button>
-            <button class="btn btn-danger btn-sm delete-btn"><i class="fa-solid fa-trash"></i></button>
+            <button class="btn btn-secondary btn-sm edit-parent-btn" title="Edit"><i class="fa-solid fa-pen"></i> Edit</button>
+            <button class="btn btn-danger btn-sm delete-parent-btn" title="Delete"><i class="fa-solid fa-trash"></i></button>
           </div>
         </td>
       `;
 
-      tr.querySelector('.edit-btn').onclick = () => openParentModal(p);
-      tr.querySelector('.delete-btn').onclick = () => {
+      tr.querySelector('.edit-parent-btn').onclick = () => openParentModal(p);
+      tr.querySelector('.delete-parent-btn').onclick = () => {
         showConfirmDialog(
           'Delete Parent Account',
-          `Are you sure you want to delete parent account '${p.name}' (${p.loginId})?`,
+          `Are you sure you want to permanently delete <strong>${p.name}</strong> (${p.loginId})? This cannot be undone.`,
           () => {
             window.CollegeDB.deleteParent(p.id, currentUser);
+            showToast(`Parent account '${p.name}' deleted.`, 'info');
             renderAdminParentEditor();
-            showToast('Parent account deleted.', 'info');
           }
         );
       };
@@ -1336,67 +1358,163 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.appendChild(tr);
     });
 
-    document.getElementById('open-add-parent-btn').onclick = () => openParentModal();
+    // Wire the Add Parent button
+    const addBtn = document.getElementById('open-add-parent-btn');
+    if (addBtn) addBtn.onclick = () => openParentModal();
+
+    // Wire the live search
+    const searchEl = document.getElementById('parent-table-search');
+    if (searchEl && !searchEl._parentSearchWired) {
+      searchEl._parentSearchWired = true;
+      searchEl.addEventListener('input', () => renderAdminParentEditor(searchEl.value));
+    }
+  }
+
+  function _populateStudentCheckboxes(students, currentStudentIds, searchQ = '') {
+    const listEl = document.getElementById('form-parent-students-list');
+    const noMsg = document.getElementById('parent-no-students-msg');
+    if (!listEl) return;
+    listEl.innerHTML = '';
+
+    const q = searchQ.toLowerCase().trim();
+    const filtered = q
+      ? students.filter(s =>
+          s.name.toLowerCase().includes(q) ||
+          s.roll.toLowerCase().includes(q) ||
+          (s.deptId || '').toLowerCase().includes(q)
+        )
+      : students;
+
+    if (noMsg) noMsg.style.display = filtered.length === 0 ? 'block' : 'none';
+
+    filtered.forEach(s => {
+      const isChecked = currentStudentIds.includes(s.id);
+      const label = document.createElement('label');
+      label.style.cssText = 'display:flex; align-items:center; gap:10px; font-size:0.85rem; cursor:pointer; padding:4px 6px; border-radius:4px; transition:background 0.15s;';
+      label.onmouseenter = () => label.style.background = 'var(--bg-hover, rgba(99,102,241,0.07))';
+      label.onmouseleave = () => label.style.background = '';
+      const deptName = (window.CollegeDB.getDepartments().find(d => d.id === s.deptId) || {}).name || s.deptId.toUpperCase();
+      label.innerHTML = `
+        <input type="checkbox" name="parent-student-cb" value="${s.id}" ${isChecked ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;accent-color:var(--primary);">
+        <span style="flex:1;">
+          <strong>${s.name}</strong>
+          <span style="color:var(--text-muted); font-size:0.78rem; margin-left:6px;">${s.roll}</span>
+          <span class="badge badge-info" style="font-size:0.7rem; padding:1px 6px; margin-left:4px;">${deptName}</span>
+        </span>
+      `;
+      listEl.appendChild(label);
+    });
   }
 
   function openParentModal(parent = null) {
     const modal = document.getElementById('parent-modal');
     const students = window.CollegeDB.getStudents();
-    const listEl = document.getElementById('form-parent-students-list');
-    listEl.innerHTML = '';
+    const errEl = document.getElementById('parent-form-error');
+    const searchInput = document.getElementById('form-parent-student-search');
+    const passHint = document.getElementById('parent-pass-hint');
 
-    const currentStudentIds = parent ? (Array.isArray(parent.studentIds) ? parent.studentIds : (parent.studentId ? [parent.studentId] : [])) : [];
+    if (errEl) errEl.style.display = 'none';
+    if (searchInput) searchInput.value = '';
 
-    students.forEach(s => {
-      const isChecked = currentStudentIds.includes(s.id);
-      const label = document.createElement('label');
-      label.style.display = 'flex';
-      label.style.alignItems = 'center';
-      label.style.gap = '8px';
-      label.style.fontSize = '0.85rem';
-      label.style.cursor = 'pointer';
-      label.innerHTML = `
-        <input type="checkbox" name="parent-student-cb" value="${s.id}" ${isChecked ? 'checked' : ''}>
-        <span><strong>${s.name}</strong> (${s.roll}) - ${s.deptId.toUpperCase()}</span>
-      `;
-      listEl.appendChild(label);
-    });
+    const currentStudentIds = parent
+      ? (Array.isArray(parent.studentIds) ? parent.studentIds : (parent.studentId ? [parent.studentId] : []))
+      : [];
+
+    _populateStudentCheckboxes(students, currentStudentIds);
 
     if (parent) {
-      document.getElementById('parent-modal-title').innerText = 'Modify Parent Account';
+      document.getElementById('parent-modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Parent Account';
       document.getElementById('form-parent-id').value = parent.id;
-      document.getElementById('form-parent-name').value = parent.name;
+      document.getElementById('form-parent-name').value = parent.name || '';
       document.getElementById('form-parent-email').value = parent.email || '';
-      document.getElementById('form-parent-login').value = parent.loginId;
+      document.getElementById('form-parent-login').value = parent.loginId || '';
       document.getElementById('form-parent-pass').value = '';
+      if (passHint) passHint.textContent = '(leave blank to keep unchanged)';
     } else {
-      document.getElementById('parent-modal-title').innerText = 'Add Parent Account';
+      document.getElementById('parent-modal-title').innerHTML = '<i class="fa-solid fa-user-plus"></i> Add Parent Account';
       document.getElementById('parent-form').reset();
       document.getElementById('form-parent-id').value = '';
+      if (passHint) passHint.textContent = '(required for new account)';
     }
+
+    // Wire search inside student list
+    if (searchInput && !searchInput._wired) {
+      searchInput._wired = true;
+      searchInput.addEventListener('input', () => {
+        const ids = Array.from(
+          document.querySelectorAll('#form-parent-students-list input[name="parent-student-cb"]:checked')
+        ).map(cb => cb.value);
+        _populateStudentCheckboxes(students, ids, searchInput.value);
+        // Re-check the ones we had checked
+        ids.forEach(id => {
+          const cb = document.querySelector(`#form-parent-students-list input[value="${id}"]`);
+          if (cb) cb.checked = true;
+        });
+      });
+    }
+
     modal.classList.add('active');
+    document.getElementById('form-parent-name').focus();
+  }
+
+  function _showParentFormError(msg) {
+    const el = document.getElementById('parent-form-error');
+    if (!el) { showToast(msg, 'warning'); return; }
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   async function handleParentModalSubmit(e) {
     e.preventDefault();
-    const id = document.getElementById('form-parent-id').value;
+    const errEl = document.getElementById('parent-form-error');
+    if (errEl) errEl.style.display = 'none';
+
+    const id = document.getElementById('form-parent-id').value.trim();
     const name = document.getElementById('form-parent-name').value.trim();
     const email = document.getElementById('form-parent-email').value.trim();
     const loginId = document.getElementById('form-parent-login').value.trim();
     const password = document.getElementById('form-parent-pass').value;
 
+    // --- Validation ---
+    if (!name) { _showParentFormError('Parent Full Name is required.'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      _showParentFormError('A valid Email Address is required.'); return;
+    }
+    if (!loginId) { _showParentFormError('Portal Login ID is required.'); return; }
+    if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(loginId)) {
+      _showParentFormError('Login ID must be 3–30 characters (letters, numbers, underscores, dots, hyphens only).'); return;
+    }
+    if (!id && !password) {
+      _showParentFormError('Password is required when creating a new parent account.'); return;
+    }
+    if (password && password.length < 6) {
+      _showParentFormError('Password must be at least 6 characters long.'); return;
+    }
+
     const checkboxes = document.querySelectorAll('#form-parent-students-list input[name="parent-student-cb"]:checked');
     const studentIds = Array.from(checkboxes).map(cb => cb.value);
 
-    const res = await window.CollegeDB.addOrUpdateParent({ id, name, email, loginId, password, studentIds }, currentUser);
-    if (res && res.success === false) {
-      showToast(res.message, 'warning');
-      return;
-    }
+    // Show saving state
+    const saveBtn = document.getElementById('save-parent-btn');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...'; }
 
-    showToast('Parent account saved successfully.', 'success');
-    document.getElementById('parent-modal').classList.remove('active');
-    renderAdminParentEditor();
+    try {
+      const res = await window.CollegeDB.addOrUpdateParent({ id, name, email, loginId, password, studentIds }, currentUser);
+
+      if (res && res.success === false) {
+        _showParentFormError(res.message || 'Failed to save parent account.');
+        return;
+      }
+
+      showToast(`Parent account '${name}' saved successfully.`, 'success');
+      document.getElementById('parent-modal').classList.remove('active');
+      renderAdminParentEditor();
+    } catch (err) {
+      _showParentFormError('An unexpected error occurred: ' + err.message);
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Save Parent Account'; }
+    }
   }
 
   // --- ADMIN TIMETABLE SCHEDULE EDITOR ---
