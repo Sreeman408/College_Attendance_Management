@@ -433,12 +433,23 @@
 
     validateParentSchema(record) {
       const errors = [];
-      if (!record.name || typeof record.name !== 'string' || !record.name.trim()) errors.push("Missing Parent Name");
-      if (!record.loginId || typeof record.loginId !== 'string' || !record.loginId.trim()) errors.push("Missing Login ID");
-      if (!record.email || typeof record.email !== 'string' || !record.email.includes('@')) errors.push("Invalid Email Address");
-
+      if (!record.name || typeof record.name !== 'string' || !record.name.trim()) {
+        errors.push("Missing Parent Name (column: name)");
+      }
+      if (!record.loginId || typeof record.loginId !== 'string' || !record.loginId.trim()) {
+        errors.push("Missing Login ID (column: loginId)");
+      } else if (!/^[a-zA-Z0-9_.-]{3,30}$/.test(record.loginId.trim())) {
+        errors.push("Login ID must be 3-30 chars, letters/numbers/underscore/dot/hyphen only");
+      }
+      if (!record.email || typeof record.email !== 'string' || !record.email.includes('@')) {
+        errors.push("Invalid or missing Email (column: email)");
+      }
+      if (!record.password || typeof record.password !== 'string' || !record.password.trim()) {
+        errors.push("Missing Password (column: password)");
+      }
       return errors;
     }
+
 
     validateBatch(type, records) {
       const results = { 
@@ -586,8 +597,44 @@
         }
       });
 
+      // Add parent-specific stats for preview
+      if (type === 'parents') {
+        const allStudents = this.getStudents();
+        let totalStudentsLinked = 0;
+        let newParentsCount = 0;
+        let existingParentsCount = 0;
+
+        results.valid.forEach(v => {
+          const rec = v.record;
+          const rawLogin = (rec.loginId || '').trim().toLowerCase();
+          const isExisting = this.getParents().some(p => p.loginId.toLowerCase() === rawLogin);
+          if (isExisting) existingParentsCount++;
+          else newParentsCount++;
+
+          const rawRolls = (rec.studentRolls || rec.studentRoll || rec.studentId || rec.roll || '').toString().split(',');
+          rawRolls.forEach(r => {
+            const rClean = r.trim().toLowerCase();
+            if (!rClean) return;
+            const matched = allStudents.find(s =>
+              s.roll.toLowerCase() === rClean ||
+              s.id.toLowerCase() === rClean ||
+              s.loginId.toLowerCase() === rClean
+            );
+            if (matched) totalStudentsLinked++;
+          });
+        });
+
+        results.stats = {
+          newParentsCount,
+          existingParentsCount,
+          totalStudentsLinked,
+          totalRecords: records.length
+        };
+      }
+
       return results;
     }
+
 
     getDepartments() { return this.data.departments; }
     getCourses() { return this.data.courses; }
@@ -1168,39 +1215,78 @@
 
     // --- PARENT MANAGEMENT ---
     async addOrUpdateParent(p, user) {
-      const isHash = (str) => /^[a-f0-9]{64}$/i.test(str);
-      
-      const existingLogin = (this.data.parents || []).find(x => x.loginId.toLowerCase() === p.loginId.toLowerCase() && x.id !== p.id);
-      if (existingLogin) {
-        return { success: false, message: `Login ID '${p.loginId}' is already in use by another parent account.` };
+      const isHash = (str) => typeof str === 'string' && /^[a-f0-9]{64}$/i.test(str);
+
+      // Normalize inputs
+      const loginId = (p.loginId || '').trim();
+      const name = (p.name || '').trim();
+      const email = (p.email || '').trim();
+      const rawPassword = (p.password || '').trim();
+      const editingId = (p.id || '').trim();
+      const studentIds = Array.isArray(p.studentIds) ? p.studentIds : [];
+
+      if (!loginId) return { success: false, message: 'Login ID is required.' };
+      if (!name) return { success: false, message: 'Parent name is required.' };
+
+      // Check duplicate loginId (exclude self when editing)
+      const dupCheck = (this.data.parents || []).find(
+        x => x.loginId.toLowerCase() === loginId.toLowerCase() && x.id !== editingId
+      );
+      if (dupCheck) {
+        return { success: false, message: `Login ID '${loginId}' is already used by another parent account.` };
       }
 
-      if (p.password && !isHash(p.password)) {
-        p.password = await this.hashPassword(p.password);
-      }
-      if (p.answer && !isHash(p.answer)) {
-        p.answer = await this.hashPassword(p.answer.trim().toLowerCase());
-      } else if (!p.answer) {
-        p.question = p.question || "What is your mother's maiden name?";
-        p.answer = await this.hashPassword("smith");
-      }
+      if (editingId) {
+        // --- EDIT MODE ---
+        const idx = this.data.parents.findIndex(x => x.id === editingId);
+        if (idx === -1) return { success: false, message: `Parent with ID '${editingId}' not found.` };
 
-      p.studentIds = Array.isArray(p.studentIds) ? p.studentIds : [];
+        const existing = this.data.parents[idx];
 
-      if (p.id) {
-        const idx = this.data.parents.findIndex(x => x.id === p.id);
-        if (idx !== -1) {
-          if (!p.password) p.password = this.data.parents[idx].password;
-          this.data.parents[idx] = { ...this.data.parents[idx], ...p };
+        // Only update password if a new one was provided
+        let newPassword = existing.password;
+        if (rawPassword) {
+          newPassword = isHash(rawPassword) ? rawPassword : await this.hashPassword(rawPassword);
         }
+
+        this.data.parents[idx] = {
+          ...existing,
+          name,
+          email: email || existing.email,
+          loginId,
+          password: newPassword,
+          studentIds,
+          question: existing.question || "What is your mother's maiden name?",
+          answer: existing.answer || await this.hashPassword('smith')
+        };
       } else {
-        p.id = 'parent_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-        if (!p.password) p.password = await this.hashPassword('parentpassword');
-        this.data.parents.push(p);
+        // --- ADD MODE ---
+        if (!rawPassword) return { success: false, message: 'Password is required when creating a new parent account.' };
+
+        const hashedPassword = isHash(rawPassword) ? rawPassword : await this.hashPassword(rawPassword);
+
+        const newParent = {
+          id: 'parent_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          name,
+          email: email || `${loginId}@annamalai.edu`,
+          loginId,
+          password: hashedPassword,
+          question: "What is your mother's maiden name?",
+          answer: await this.hashPassword('smith'),
+          studentIds
+        };
+        this.data.parents.push(newParent);
       }
+
       this.save();
-      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_UPDATE', `Saved parent account ${p.name} (${p.loginId})`);
-      return { success: true, parent: p };
+      this.logAudit(
+        user ? user.id : 'ADMIN',
+        user ? user.name : 'Admin',
+        'ADMIN',
+        editingId ? 'PARENT_UPDATE' : 'PARENT_CREATE',
+        `${editingId ? 'Updated' : 'Created'} parent account: ${name} (${loginId})`
+      );
+      return { success: true };
     }
 
     deleteParent(parentId, user) {
@@ -1209,6 +1295,7 @@
       this.save();
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_DELETE', `Deleted parent account ${p ? p.name : parentId}`);
     }
+
 
     // --- QR CODE ATTENDANCE VERIFICATION ---
     markStudentPresentViaQR(studentId, courseId, date, token) {

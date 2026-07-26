@@ -1837,6 +1837,12 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingParsedBatch = { type: targetType, mode: mode, rows: dataRows, validation: validation };
 
     const autoSummaryEl = document.getElementById('timetable-auto-provision-summary');
+    const parentSummaryEl = document.getElementById('parent-bulk-summary');
+
+    // Hide both summaries first
+    if (autoSummaryEl) autoSummaryEl.style.display = 'none';
+    if (parentSummaryEl) parentSummaryEl.style.display = 'none';
+
     if (targetType === 'timetable' && validation.stats) {
       const stats = validation.stats;
       document.getElementById('summary-new-courses').innerText = `New Subjects: ${stats.newCoursesCount}`;
@@ -1860,8 +1866,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
       document.getElementById('summary-auto-details').innerHTML = detailText;
       if (autoSummaryEl) autoSummaryEl.style.display = 'block';
-    } else {
-      if (autoSummaryEl) autoSummaryEl.style.display = 'none';
+
+    } else if (targetType === 'parents' && validation.stats) {
+      const stats = validation.stats;
+      const newParentsEl = document.getElementById('summary-new-parents');
+      const existingParentsEl = document.getElementById('summary-existing-parents');
+      const linkedStudentsEl = document.getElementById('summary-linked-students');
+      if (newParentsEl) newParentsEl.innerHTML = `<i class="fa-solid fa-user-plus"></i> New Parents: ${stats.newParentsCount}`;
+      if (existingParentsEl) existingParentsEl.innerHTML = `<i class="fa-solid fa-user-check"></i> Existing (Update): ${stats.existingParentsCount}`;
+      if (linkedStudentsEl) linkedStudentsEl.innerHTML = `<i class="fa-solid fa-user-graduate"></i> Students Linked: ${stats.totalStudentsLinked}`;
+      if (parentSummaryEl) parentSummaryEl.style.display = 'block';
     }
 
     // Update Modal Preview Stats (Subtract duplicates from valid to get net "To Add")
@@ -1878,6 +1892,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     previewModal.classList.add('active');
   }
+
 
   function renderPreviewTable(tabFilter) {
     document.getElementById('btn-tab-add')?.classList.toggle('active', tabFilter === 'add');
@@ -1954,12 +1969,20 @@ document.addEventListener('DOMContentLoaded', () => {
       result = await window.CollegeDB.uploadTimetableIntelligent(validRecords, currentUser);
     }
 
-    if (typeof result === 'object' && result.success) {
+    if (typeof result === 'object' && result.success && type === 'timetable') {
       showToast(`Timetable Auto-Provisioning Complete! Added ${result.slotsCount} lecture slots, auto-created ${result.newCoursesCount} subjects and ${result.newStaffCount} faculty profiles.`, 'success');
       previewModal.classList.remove('active');
       renderActiveView();
     } else if (result === true) {
-      showToast(`Import Successful! Synchronized ${validRecords.length} records into database.`, 'success');
+      // Type-specific success messages
+      let successMsg = `Import Successful! Synchronized ${validRecords.length} records into database.`;
+      if (type === 'parents') {
+        const stats = validation.stats;
+        if (stats) {
+          successMsg = `Parent Import Complete! Added ${stats.newParentsCount} new accounts, updated ${stats.existingParentsCount} existing, linked ${stats.totalStudentsLinked} students.`;
+        }
+      }
+      showToast(successMsg, 'success');
       previewModal.classList.remove('active');
       renderActiveView();
     } else {
@@ -1967,6 +1990,7 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(msg, 'danger');
     }
   }
+
 
   function downloadCSVTemplate() {
     const targetType = document.getElementById('upload-target-type').value;

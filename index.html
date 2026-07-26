@@ -120,8 +120,8 @@
       </div>
       <form id="parent-login-form" class="login-form">
         <div class="form-group">
-          <label for="parent-id">Student Roll / Login ID</label>
-          <input type="text" id="parent-id" class="form-control" placeholder="e.g. parent_alice or student_alice" required>
+          <label for="parent-id">Parent Login ID</label>
+          <input type="text" id="parent-id" class="form-control" placeholder="e.g. parent_alice" required>
         </div>
         <div class="form-group">
           <label for="parent-password">Password</label>
@@ -1184,6 +1184,20 @@
           </div>
           <div id="summary-auto-details" style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4;"></div>
         </div>
+
+        <!-- Parent Bulk Upload Summary -->
+        <div id="parent-bulk-summary" style="display:none; background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;"><i class="fa-solid fa-users-line"></i> Parent Bulk Import Summary:</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.8rem;">
+            <span class="badge badge-success" id="summary-new-parents"><i class="fa-solid fa-user-plus"></i> New Parents: 0</span>
+            <span class="badge badge-info" id="summary-existing-parents"><i class="fa-solid fa-user-check"></i> Existing (Update): 0</span>
+            <span class="badge badge-primary" id="summary-linked-students"><i class="fa-solid fa-user-graduate"></i> Students Linked: 0</span>
+          </div>
+          <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4;">
+            <i class="fa-solid fa-circle-info"></i> Use column <strong>studentRolls</strong> (comma-separated roll numbers) to link students to a parent. Example: <code>CSE-2026-01,CSE-2026-02</code>
+          </div>
+        </div>
+
         <div class="preview-tabs" id="preview-tabs" style="display:flex; gap:12px; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
           <button type="button" class="btn btn-secondary btn-sm active" id="btn-tab-add" style="padding: 6px 12px; font-weight:600;"><i class="fa-solid fa-plus-circle"></i> To Add (<span id="preview-valid-count">0</span>)</button>
           <button type="button" class="btn btn-secondary btn-sm" id="btn-tab-update" style="padding: 6px 12px; font-weight:600;"><i class="fa-solid fa-pen-to-square"></i> To Update (<span id="preview-dup-count">0</span>)</button>
