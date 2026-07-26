@@ -387,9 +387,117 @@
     }
 
     validateBatch(type, records) {
-      const results = { valid: [], errors: [], duplicates: [], conflicts: [] };
+      const results = { 
+        valid: [], 
+        errors: [], 
+        duplicates: [], 
+        conflicts: [],
+        stats: null 
+      };
       if (!Array.isArray(records)) {
         results.errors.push({ row: 0, record: null, error: 'Input data is not an array' });
+        return results;
+      }
+
+      if (type === 'timetable') {
+        const existingCourses = this.getCourses();
+        const existingStaff = this.getStaff();
+        const existingTimetable = this.getTimetable();
+        const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        const newCoursesMap = new Map();
+        const existingCoursesUsed = new Set();
+        const newStaffMap = new Map();
+        const linkedStaffSet = new Set();
+
+        const batchRoomBookings = new Set();
+        const batchProfBookings = new Set();
+
+        records.forEach((rec, idx) => {
+          const rowNum = idx + 1;
+          const rowErrors = [];
+
+          // Mandatory field checks
+          if (!rec.day || !validDays.includes(rec.day)) rowErrors.push(`Invalid/Missing Day '${rec.day || ''}'`);
+          if (!rec.time || typeof rec.time !== 'string') rowErrors.push("Missing Time slot");
+          if (!rec.classroom || typeof rec.classroom !== 'string') rowErrors.push("Missing Classroom");
+
+          // Identify Course
+          const rawCourseCode = (rec.courseCode || rec.courseId || rec.code || '').trim();
+          const rawCourseName = (rec.courseName || rec.name || rec.subject || rawCourseCode).trim();
+          if (!rawCourseCode) {
+            rowErrors.push("Missing Course/Subject Code");
+          } else {
+            const courseCodeClean = rawCourseCode.toUpperCase();
+            const matchedCourse = existingCourses.find(c => c.code.toUpperCase() === courseCodeClean || c.id === rawCourseCode.toLowerCase());
+            if (matchedCourse) {
+              existingCoursesUsed.add(matchedCourse.code);
+            } else {
+              newCoursesMap.set(courseCodeClean, { code: courseCodeClean, name: rawCourseName || courseCodeClean });
+            }
+          }
+
+          // Identify Professor / Faculty
+          const rawProf = (rec.professor || rec.faculty || rec.staffId || rec.loginId || '').trim();
+          if (!rawProf) {
+            rowErrors.push("Missing Professor / Faculty Name");
+          } else {
+            const matchedStaff = existingStaff.find(st => 
+              st.name.toLowerCase() === rawProf.toLowerCase() || 
+              st.loginId.toLowerCase() === rawProf.toLowerCase() || 
+              st.email.toLowerCase() === rawProf.toLowerCase()
+            );
+            if (matchedStaff) {
+              linkedStaffSet.add(matchedStaff.name);
+            } else {
+              newStaffMap.set(rawProf.toLowerCase(), rawProf);
+            }
+          }
+
+          // Conflict checks (Classroom & Faculty time conflict)
+          if (rec.day && rec.time && rec.classroom) {
+            const roomKey = `${rec.day.toLowerCase()}|${rec.time.trim().toLowerCase()}|${rec.classroom.trim().toLowerCase()}`;
+            
+            const dbConflict = existingTimetable.find(t => 
+              t.day === rec.day && 
+              t.time.trim().toLowerCase() === rec.time.trim().toLowerCase() && 
+              t.classroom.trim().toLowerCase() === rec.classroom.trim().toLowerCase()
+            );
+            if (dbConflict) {
+              rowErrors.push(`Classroom conflict: '${rec.classroom}' is already booked on ${rec.day} (${rec.time})`);
+            } else if (batchRoomBookings.has(roomKey)) {
+              rowErrors.push(`Duplicate Classroom slot in file: '${rec.classroom}' booked twice on ${rec.day} (${rec.time})`);
+            } else {
+              batchRoomBookings.add(roomKey);
+            }
+          }
+
+          if (rec.day && rec.time && rawProf) {
+            const profKey = `${rec.day.toLowerCase()}|${rec.time.trim().toLowerCase()}|${rawProf.toLowerCase()}`;
+            if (batchProfBookings.has(profKey)) {
+              rowErrors.push(`Faculty conflict in file: '${rawProf}' is scheduled twice on ${rec.day} (${rec.time})`);
+            } else {
+              batchProfBookings.add(profKey);
+            }
+          }
+
+          if (rowErrors.length > 0) {
+            results.errors.push({ row: rowNum, record: rec, error: rowErrors.join('; ') });
+          } else {
+            results.valid.push({ row: rowNum, record: rec });
+          }
+        });
+
+        results.stats = {
+          newCoursesCount: newCoursesMap.size,
+          existingCoursesCount: existingCoursesUsed.size,
+          newStaffCount: newStaffMap.size,
+          linkedStaffCount: linkedStaffSet.size,
+          slotsCount: results.valid.length,
+          newCoursesList: Array.from(newCoursesMap.values()).map(c => `${c.code}: ${c.name}`),
+          newStaffList: Array.from(newStaffMap.values())
+        };
+
         return results;
       }
 
@@ -402,13 +510,6 @@
           const isDuplicate = this.getStudents().some(s => s.roll === rec.roll || s.loginId === rec.loginId);
           if (isDuplicate) {
             results.duplicates.push({ row: rowNum, record: rec, reason: `Duplicate Roll '${rec.roll}' or Login '${rec.loginId}'` });
-          }
-        } else if (type === 'timetable') {
-          schemaErrors = this.validateTimetableSchema(rec);
-          // Check room/time conflicts
-          const conflict = this.getTimetable().some(t => t.day === rec.day && t.time === rec.time && t.classroom === rec.classroom);
-          if (conflict) {
-            results.conflicts.push({ row: rowNum, record: rec, reason: `Room Conflict: ${rec.classroom} occupied on ${rec.day} ${rec.time}` });
           }
         } else if (type === 'staff') {
           schemaErrors = this.validateStaffSchema(rec);
@@ -655,20 +756,126 @@
     }
 
     // --- ADMIN WRITE & BULK ACTIONS ---
-    uploadTimetable(timetableList, user) {
+    async uploadTimetableIntelligent(timetableList, user) {
       const snapshot = this.createSnapshot();
       try {
-        if (Array.isArray(timetableList)) {
-          this.data.timetable = timetableList;
-          this.save();
-          this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'BULK_TIMETABLE', `Uploaded ${timetableList.length} timetable entries`);
-          return true;
+        if (!Array.isArray(timetableList) || timetableList.length === 0) {
+          return { success: false, message: 'No timetable records to process.' };
         }
-        return false;
+
+        const defaultDept = (this.getDepartments()[0] || { id: 'cse' }).id;
+        const validDepts = this.getDepartments();
+
+        let newCoursesCount = 0;
+        let existingCoursesCount = 0;
+        let newStaffCount = 0;
+        let linkedStaffCount = 0;
+
+        const newTimetableSlots = [];
+
+        for (let rec of timetableList) {
+          // 1. Resolve or Create Course
+          const rawCode = (rec.courseCode || rec.courseId || rec.code || '').trim().toUpperCase();
+          const rawName = (rec.courseName || rec.name || rec.subject || rawCode).trim();
+          
+          let course = this.data.courses.find(c => c.code.toUpperCase() === rawCode || c.id === rawCode.toLowerCase());
+          if (!course) {
+            let deptId = defaultDept;
+            if (rec.deptId && validDepts.some(d => d.id === rec.deptId.toLowerCase())) {
+              deptId = rec.deptId.toLowerCase();
+            } else {
+              const codePrefix = rawCode.split('-')[0].toLowerCase();
+              const matchedDept = validDepts.find(d => d.id === codePrefix || d.code.toLowerCase() === codePrefix);
+              if (matchedDept) deptId = matchedDept.id;
+            }
+
+            const cleanCourseId = rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+            course = {
+              id: cleanCourseId || ('course_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+              code: rawCode,
+              name: rawName || rawCode,
+              deptId: deptId
+            };
+            this.data.courses.push(course);
+            newCoursesCount++;
+          } else {
+            existingCoursesCount++;
+          }
+
+          // 2. Resolve or Create Faculty
+          const rawProf = (rec.professor || rec.faculty || rec.staffId || rec.loginId || '').trim();
+          let staff = this.data.staff.find(st => 
+            st.name.toLowerCase() === rawProf.toLowerCase() || 
+            st.loginId.toLowerCase() === rawProf.toLowerCase() || 
+            st.email.toLowerCase() === rawProf.toLowerCase()
+          );
+
+          if (!staff) {
+            const cleanLogin = 'staff_' + rawProf.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const defaultPasswordHash = await this.hashPassword('staffpassword');
+            const defaultAnswerHash = await this.hashPassword('smith');
+
+            staff = {
+              id: 'prof_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              name: rawProf,
+              email: `${rawProf.toLowerCase().replace(/[^a-z0-9]/g, '.')}@annamalai.edu`,
+              deptId: course.deptId || defaultDept,
+              loginId: cleanLogin,
+              password: defaultPasswordHash,
+              question: "What is your mother's maiden name?",
+              answer: defaultAnswerHash,
+              courses: [course.id]
+            };
+            this.data.staff.push(staff);
+            newStaffCount++;
+          } else {
+            staff.courses = staff.courses || [];
+            if (!staff.courses.includes(course.id)) {
+              staff.courses.push(course.id);
+              linkedStaffCount++;
+            }
+          }
+
+          // 3. Create Timetable Slot
+          newTimetableSlots.push({
+            id: rec.id || ('tt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
+            day: rec.day,
+            time: rec.time,
+            classroom: rec.classroom,
+            courseId: course.id,
+            staffId: staff.id
+          });
+        }
+
+        // Replace timetable slots
+        this.data.timetable = newTimetableSlots;
+        this.save();
+
+        this.logAudit(
+          user ? user.id : 'ADMIN', 
+          user ? user.name : 'Admin', 
+          'ADMIN', 
+          'BULK_TIMETABLE_AUTO', 
+          `Auto-provisioned timetable import: ${newCoursesCount} new subjects, ${newStaffCount} new faculty, ${linkedStaffCount} linked faculty, ${newTimetableSlots.length} slots`
+        );
+
+        return {
+          success: true,
+          newCoursesCount,
+          existingCoursesCount,
+          newStaffCount,
+          linkedStaffCount,
+          slotsCount: newTimetableSlots.length
+        };
       } catch (e) {
+        console.error("Intelligent timetable bulk upload error:", e);
         this.restoreSnapshot(snapshot);
-        return false;
+        return { success: false, message: 'Transaction failed during timetable auto-provisioning. Changes rolled back.' };
       }
+    }
+
+    uploadTimetable(timetableList, user) {
+      return this.uploadTimetableIntelligent(timetableList, user);
     }
 
     uploadStudents(studentList, resolutionMode = 'merge', user) {

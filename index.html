@@ -1051,6 +1051,16 @@
         <button class="modal-close" id="close-preview-modal">&times;</button>
       </div>
       <div class="modal-body">
+        <div id="timetable-auto-provision-summary" style="display:none; background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 14px;">
+          <div style="font-size: 0.85rem; font-weight: 700; color: var(--primary); margin-bottom: 8px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Intelligent Timetable Auto-Provisioning Summary:</div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap; font-size: 0.8rem;">
+            <span class="badge badge-info" id="summary-new-courses"><i class="fa-solid fa-book"></i> New Subjects: 0</span>
+            <span class="badge badge-info" id="summary-reused-courses"><i class="fa-solid fa-bookmark"></i> Reused Subjects: 0</span>
+            <span class="badge badge-success" id="summary-linked-staff"><i class="fa-solid fa-user-check"></i> Faculty Linked/Created: 0</span>
+            <span class="badge badge-primary" id="summary-slots-count"><i class="fa-solid fa-calendar-day"></i> Timetable Slots: 0</span>
+          </div>
+          <div id="summary-auto-details" style="font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; line-height: 1.4;"></div>
+        </div>
         <div class="preview-tabs" id="preview-tabs" style="display:flex; gap:12px; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
           <button type="button" class="btn btn-secondary btn-sm active" id="btn-tab-add" style="padding: 6px 12px; font-weight:600;"><i class="fa-solid fa-plus-circle"></i> To Add (<span id="preview-valid-count">0</span>)</button>
           <button type="button" class="btn btn-secondary btn-sm" id="btn-tab-update" style="padding: 6px 12px; font-weight:600;"><i class="fa-solid fa-pen-to-square"></i> To Update (<span id="preview-dup-count">0</span>)</button>

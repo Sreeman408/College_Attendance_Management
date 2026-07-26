@@ -1562,6 +1562,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const validation = window.CollegeDB.validateBatch(targetType, dataRows);
     pendingParsedBatch = { type: targetType, mode: mode, rows: dataRows, validation: validation };
 
+    const autoSummaryEl = document.getElementById('timetable-auto-provision-summary');
+    if (targetType === 'timetable' && validation.stats) {
+      const stats = validation.stats;
+      document.getElementById('summary-new-courses').innerText = `New Subjects: ${stats.newCoursesCount}`;
+      document.getElementById('summary-reused-courses').innerText = `Reused Subjects: ${stats.existingCoursesCount}`;
+      document.getElementById('summary-linked-staff').innerText = `Faculty Linked/Created: ${stats.linkedStaffCount + stats.newStaffCount}`;
+      document.getElementById('summary-slots-count').innerText = `Timetable Slots: ${stats.slotsCount}`;
+
+      let detailText = `<strong>Auto-Creation Details:</strong> `;
+      if (stats.newCoursesCount > 0) {
+        detailText += `<br>• Subjects to Create: ${stats.newCoursesList.join(', ')}`;
+      } else {
+        detailText += `<br>• All ${stats.existingCoursesCount} subjects matched existing records.`;
+      }
+
+      if (stats.newStaffCount > 0) {
+        detailText += `<br>• Faculty to Create: ${stats.newStaffList.join(', ')}`;
+      }
+      if (stats.linkedStaffCount > 0) {
+        detailText += `<br>• Existing faculty to auto-link with subjects: ${stats.linkedStaffCount}`;
+      }
+
+      document.getElementById('summary-auto-details').innerHTML = detailText;
+      if (autoSummaryEl) autoSummaryEl.style.display = 'block';
+    } else {
+      if (autoSummaryEl) autoSummaryEl.style.display = 'none';
+    }
+
     // Update Modal Preview Stats (Subtract duplicates from valid to get net "To Add")
     const dupCount = validation.duplicates.length;
     const addCount = Math.max(0, validation.valid.length - dupCount);
@@ -1629,7 +1657,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  function commitParsedBatch() {
+  async function commitParsedBatch() {
     if (!pendingParsedBatch) return;
 
     const { type, mode, validation } = pendingParsedBatch;
@@ -1641,21 +1669,26 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    let success = false;
+    let result = false;
     if (type === 'students') {
-      success = window.CollegeDB.uploadStudents(validRecords, mode, currentUser);
+      result = window.CollegeDB.uploadStudents(validRecords, mode, currentUser);
     } else if (type === 'staff') {
-      success = window.CollegeDB.uploadStaff(validRecords, currentUser);
+      result = window.CollegeDB.uploadStaff(validRecords, currentUser);
     } else if (type === 'timetable') {
-      success = window.CollegeDB.uploadTimetable(validRecords, currentUser);
+      result = await window.CollegeDB.uploadTimetableIntelligent(validRecords, currentUser);
     }
 
-    if (success) {
+    if (typeof result === 'object' && result.success) {
+      showToast(`Timetable Auto-Provisioning Complete! Added ${result.slotsCount} lecture slots, auto-created ${result.newCoursesCount} subjects and ${result.newStaffCount} faculty profiles.`, 'success');
+      previewModal.classList.remove('active');
+      renderActiveView();
+    } else if (result === true) {
       showToast(`Import Successful! Synchronized ${validRecords.length} records into database.`, 'success');
       previewModal.classList.remove('active');
       renderActiveView();
     } else {
-      showToast('Transaction failed. Rollback executed.', 'danger');
+      const msg = (typeof result === 'object' && result.message) ? result.message : 'Transaction failed. Rollback executed.';
+      showToast(msg, 'danger');
     }
   }
 
