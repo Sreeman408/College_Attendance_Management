@@ -1511,4 +1511,100 @@ body {
   }
 }
 
+/* --- RESPONSIVE MOBILE UX ENHANCEMENTS (< 768px) --- */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    display: none !important;
+  }
+
+  .bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background-color: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+    z-index: 999;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0 4px;
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+  }
+
+  .bottom-nav .nav-link {
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.68rem;
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    text-align: center;
+    color: var(--text-muted);
+  }
+
+  .bottom-nav .nav-link i {
+    font-size: 1.1rem;
+  }
+
+  .bottom-nav .nav-link.active {
+    color: var(--primary);
+    background-color: var(--primary-light);
+  }
+
+  .main-panel {
+    height: auto;
+    min-height: 100vh;
+    padding-bottom: 70px;
+  }
+
+  .top-header {
+    padding: 0 16px;
+    height: 60px;
+  }
+
+  .page-title {
+    font-size: 1.1rem;
+  }
+
+  .content-area {
+    padding: 16px 12px;
+  }
+
+  .card {
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .modal-container {
+    width: 94% !important;
+    max-width: 100% !important;
+    margin: 10px auto;
+    padding: 16px !important;
+  }
+
+  .form-control, .btn {
+    min-height: 44px;
+  }
+
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 12px;
+  }
+
+  .custom-table {
+    font-size: 0.82rem;
+  }
+
+  .custom-table th, .custom-table td {
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+}
+
 

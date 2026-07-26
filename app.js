@@ -377,6 +377,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-course-modal')?.addEventListener('click', () => courseModal.classList.remove('active'));
     document.getElementById('cancel-course-modal')?.addEventListener('click', () => courseModal.classList.remove('active'));
 
+    const parentModal = document.getElementById('parent-modal');
+    document.getElementById('parent-form')?.addEventListener('submit', handleParentModalSubmit);
+    document.getElementById('close-parent-modal')?.addEventListener('click', () => parentModal.classList.remove('active'));
+    document.getElementById('cancel-parent-modal')?.addEventListener('click', () => parentModal.classList.remove('active'));
+
+    const parentLeaveModal = document.getElementById('parent-apply-leave-modal');
+    document.getElementById('parent-leave-form')?.addEventListener('submit', handleParentLeaveSubmit);
+    document.getElementById('close-parent-leave-modal')?.addEventListener('click', () => parentLeaveModal.classList.remove('active'));
+    document.getElementById('cancel-parent-leave-modal')?.addEventListener('click', () => parentLeaveModal.classList.remove('active'));
+
     const timetableModal = document.getElementById('timetable-modal');
     document.getElementById('timetable-form')?.addEventListener('submit', handleTimetableModalSubmit);
     document.getElementById('close-timetable-modal')?.addEventListener('click', () => timetableModal.classList.remove('active'));
@@ -744,6 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
       'admin-edit-staff': { title: 'Manage Faculty Registry', subtitle: 'Register, edit details, or remove staff profiles' },
       'admin-edit-dept': { title: 'Manage Departments', subtitle: 'Add, modify, or remove academic department units' },
       'admin-edit-course': { title: 'Manage Academic Subjects', subtitle: 'Add, edit, or remove subjects & allocate faculty' },
+      'admin-edit-parent': { title: 'Manage Parent & Guardian Accounts', subtitle: 'Register parent accounts, link students, or manage credentials' },
       'admin-edit-timetable': { title: 'Manage Master Timetable', subtitle: 'Allocate lecture slots, classrooms & faculty professors' },
       'admin-audit': { title: 'Security Audit Trail', subtitle: 'System-wide activity and security log' },
       
@@ -773,6 +784,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'admin-edit-staff': renderAdminStaffEditor(); break;
       case 'admin-edit-dept': renderAdminDeptEditor(); break;
       case 'admin-edit-course': renderAdminCourseEditor(); break;
+      case 'admin-edit-parent': renderAdminParentEditor(); break;
       case 'admin-edit-timetable': renderAdminTimetableEditor(); break;
       case 'staff-dashboard': renderStaffDashboard(); break;
       case 'staff-marker': renderStaffMarker(); break;
@@ -1207,10 +1219,12 @@ document.addEventListener('DOMContentLoaded', () => {
         .map(st => st.name)
         .join(', ');
 
+      const isPractical = c.type === 'Practical';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><code>${c.code}</code></td>
         <td><strong>${c.name}</strong></td>
+        <td><span class="badge ${isPractical ? 'badge-warning' : 'badge-info'}">${c.type || 'Lecture'}</span></td>
         <td style="text-transform:uppercase;">${c.deptId}</td>
         <td><span style="font-size:0.8rem; color:var(--text-muted);">${assignedProfNames || 'Unassigned'}</span></td>
         <td>
@@ -1247,6 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('form-course-id').value = course.id;
       document.getElementById('form-course-code').value = course.code;
       document.getElementById('form-course-name').value = course.name;
+      document.getElementById('form-course-type').value = course.type || 'Lecture';
       document.getElementById('form-course-dept').value = course.deptId;
     } else {
       document.getElementById('course-modal-title').innerText = 'Add Academic Subject';
@@ -1261,12 +1276,115 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = document.getElementById('form-course-id').value;
     const code = document.getElementById('form-course-code').value.trim();
     const name = document.getElementById('form-course-name').value.trim();
+    const type = document.getElementById('form-course-type').value;
     const deptId = document.getElementById('form-course-dept').value;
 
-    window.CollegeDB.addOrUpdateCourse({ id, code, name, deptId }, currentUser);
+    window.CollegeDB.addOrUpdateCourse({ id, code, name, type, deptId }, currentUser);
     showToast('Subject saved successfully.', 'success');
     document.getElementById('course-modal').classList.remove('active');
     renderAdminCourseEditor();
+  }
+
+  // --- ADMIN PARENT EDITOR ---
+  function renderAdminParentEditor() {
+    const parents = window.CollegeDB.getParents();
+    const students = window.CollegeDB.getStudents();
+    const tbody = document.getElementById('admin-parents-editor-table').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    parents.forEach(p => {
+      const studentIds = Array.isArray(p.studentIds) ? p.studentIds : (p.studentId ? [p.studentId] : []);
+      const linkedStudentNames = students
+        .filter(s => studentIds.includes(s.id))
+        .map(s => `${s.name} (${s.roll})`)
+        .join('<br>');
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${p.name}</strong></td>
+        <td><code>${p.loginId}</code></td>
+        <td>${p.email || '-'}</td>
+        <td><span style="font-size:0.82rem; color:var(--text-main);">${linkedStudentNames || 'None Linked'}</span></td>
+        <td>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-sm edit-btn"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm delete-btn"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+
+      tr.querySelector('.edit-btn').onclick = () => openParentModal(p);
+      tr.querySelector('.delete-btn').onclick = () => {
+        showConfirmDialog(
+          'Delete Parent Account',
+          `Are you sure you want to delete parent account '${p.name}' (${p.loginId})?`,
+          () => {
+            window.CollegeDB.deleteParent(p.id, currentUser);
+            renderAdminParentEditor();
+            showToast('Parent account deleted.', 'info');
+          }
+        );
+      };
+
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('open-add-parent-btn').onclick = () => openParentModal();
+  }
+
+  function openParentModal(parent = null) {
+    const modal = document.getElementById('parent-modal');
+    const students = window.CollegeDB.getStudents();
+    const listEl = document.getElementById('form-parent-students-list');
+    listEl.innerHTML = '';
+
+    const currentStudentIds = parent ? (Array.isArray(parent.studentIds) ? parent.studentIds : (parent.studentId ? [parent.studentId] : [])) : [];
+
+    students.forEach(s => {
+      const isChecked = currentStudentIds.includes(s.id);
+      const label = document.createElement('label');
+      label.style.display = 'flex';
+      label.style.alignItems = 'center';
+      label.style.gap = '8px';
+      label.style.fontSize = '0.85rem';
+      label.style.cursor = 'pointer';
+      label.innerHTML = `
+        <input type="checkbox" name="parent-student-cb" value="${s.id}" ${isChecked ? 'checked' : ''}>
+        <span><strong>${s.name}</strong> (${s.roll}) - ${s.deptId.toUpperCase()}</span>
+      `;
+      listEl.appendChild(label);
+    });
+
+    if (parent) {
+      document.getElementById('parent-modal-title').innerText = 'Modify Parent Account';
+      document.getElementById('form-parent-id').value = parent.id;
+      document.getElementById('form-parent-name').value = parent.name;
+      document.getElementById('form-parent-email').value = parent.email || '';
+      document.getElementById('form-parent-login').value = parent.loginId;
+      document.getElementById('form-parent-pass').value = '';
+    } else {
+      document.getElementById('parent-modal-title').innerText = 'Add Parent Account';
+      document.getElementById('parent-form').reset();
+      document.getElementById('form-parent-id').value = '';
+    }
+    modal.classList.add('active');
+  }
+
+  async function handleParentModalSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('form-parent-id').value;
+    const name = document.getElementById('form-parent-name').value.trim();
+    const email = document.getElementById('form-parent-email').value.trim();
+    const loginId = document.getElementById('form-parent-login').value.trim();
+    const password = document.getElementById('form-parent-pass').value;
+
+    const checkboxes = document.querySelectorAll('#form-parent-students-list input[name="parent-student-cb"]:checked');
+    const studentIds = Array.from(checkboxes).map(cb => cb.value);
+
+    await window.CollegeDB.addOrUpdateParent({ id, name, email, loginId, password, studentIds }, currentUser);
+    showToast('Parent account saved successfully.', 'success');
+    document.getElementById('parent-modal').classList.remove('active');
+    renderAdminParentEditor();
   }
 
   // --- ADMIN TIMETABLE SCHEDULE EDITOR ---
@@ -1700,7 +1818,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (targetType === 'staff') {
       data = [{ name: 'Dr. John Von Neumann', email: 'j.neumann@annamalai.edu', deptId: 'cse', loginId: 'staff_john', password: 'staffpassword' }];
     } else if (targetType === 'timetable') {
-      data = [{ day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', courseCode: 'CS-101', classroom: 'Lab 1', staffId: 'prof1', professor: 'Dr. Alan Turing' }];
+      data = [{ day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', courseCode: 'CS-101', courseName: 'Data Structures', type: 'Lecture', classroom: 'Lecture Hall 101', staffId: 'prof1', professor: 'Dr. Alan Turing' }];
     }
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -2204,29 +2322,175 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- PARENT PORTAL ROUTINE ---
   // ==========================================
   function renderParentDashboard() {
-    if (!currentUser || !currentUser.ward) return;
-    const ward = currentUser.ward;
-    const stats = window.CollegeDB.getStudentStats(ward.id);
+    if (!currentUser) return;
 
-    document.getElementById('parent-ward-info').innerHTML = `
-      Monitoring Ward: <strong>${ward.name}</strong> (Roll: <code>${ward.roll}</code>) | Department: <strong style="text-transform:uppercase;">${ward.deptId}</strong>
-      | Overall Percentage: <strong style="color:${stats.overallPercentage < 75 ? 'var(--danger)' : 'var(--success)'};">${stats.overallPercentage}%</strong>
-    `;
+    // Resolve parent's linked students
+    const allStudents = window.CollegeDB.getStudents();
+    const studentIds = Array.isArray(currentUser.studentIds) ? currentUser.studentIds : (currentUser.wardStudentId ? [currentUser.wardStudentId] : []);
+    const linkedStudents = allStudents.filter(s => studentIds.includes(s.id));
 
-    const tbody = document.getElementById('parent-ward-table').querySelector('tbody');
-    tbody.innerHTML = '';
+    const infoEl = document.getElementById('parent-ward-info');
 
-    stats.courseStats.forEach(cs => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><strong>${cs.courseCode}</strong></td>
-        <td>${cs.courseName}</td>
-        <td>${cs.present + cs.excused} / ${cs.total}</td>
-        <td><strong>${cs.percentage}%</strong></td>
-        <td><span class="badge ${cs.percentage >= 75 ? 'badge-success' : 'badge-danger'}">${cs.percentage >= 75 ? 'Eligible' : 'Shortage'}</span></td>
+    if (linkedStudents.length === 0) {
+      if (infoEl) infoEl.innerHTML = `<em>No students linked to this parent account yet. Please contact registrar administration.</em>`;
+      return;
+    }
+
+    // Populate child selector dropdown
+    const selectEl = document.getElementById('parent-child-select');
+    if (selectEl) {
+      selectEl.innerHTML = '';
+      linkedStudents.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.innerText = `${s.name} (${s.roll}) - ${s.deptId.toUpperCase()}`;
+        if (s.id === (currentUser.wardStudentId || linkedStudents[0].id)) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    // Determine current selected child ID
+    let activeChildId = (selectEl ? selectEl.value : null) || currentUser.wardStudentId || linkedStudents[0].id;
+    const activeStudent = linkedStudents.find(s => s.id === activeChildId) || linkedStudents[0];
+    currentUser.wardStudentId = activeStudent.id;
+    currentUser.ward = activeStudent;
+
+    // Render Ward Info header
+    if (infoEl) {
+      infoEl.innerHTML = `
+        <strong>Monitoring Student:</strong> <span style="color:var(--primary); font-weight:700;">${activeStudent.name}</span> &nbsp;|&nbsp; 
+        <strong>Roll No:</strong> <code>${activeStudent.roll}</code> &nbsp;|&nbsp; 
+        <strong>Department:</strong> <span style="text-transform:uppercase; font-weight:600;">${activeStudent.deptId}</span> &nbsp;|&nbsp; 
+        <strong>Email:</strong> ${activeStudent.email}
       `;
-      tbody.appendChild(tr);
-    });
+    }
+
+    // Fetch child stats via weighted calculation (1 Lab = 3 Lectures)
+    const stats = window.CollegeDB.getStudentStats(activeStudent.id);
+    if (!stats) return;
+
+    // Render Overall Percentage & Shortage Card
+    const pctEl = document.getElementById('parent-overall-percentage');
+    if (pctEl) {
+      pctEl.innerText = `${stats.overallPercentage}%`;
+      pctEl.style.color = stats.overallPercentage < 75 ? 'var(--danger)' : 'var(--success)';
+    }
+
+    const badgeEl = document.getElementById('parent-eligibility-badge');
+    const shortageAlertEl = document.getElementById('parent-shortage-alert');
+    if (stats.overallPercentage >= 75) {
+      if (badgeEl) badgeEl.innerHTML = `<span class="badge badge-success" style="font-size:0.9rem; padding:6px 12px;"><i class="fa-solid fa-circle-check"></i> Eligible (>= 75%)</span>`;
+      if (shortageAlertEl) shortageAlertEl.style.display = 'none';
+    } else {
+      if (badgeEl) badgeEl.innerHTML = `<span class="badge badge-danger" style="font-size:0.9rem; padding:6px 12px;"><i class="fa-solid fa-triangle-exclamation"></i> Shortage (< 75%)</span>`;
+      if (shortageAlertEl) shortageAlertEl.style.display = 'block';
+    }
+
+    // Render Subject-Wise Table
+    const wardTbody = document.getElementById('parent-ward-table')?.querySelector('tbody');
+    if (wardTbody) {
+      wardTbody.innerHTML = '';
+      stats.courseStats.forEach(cs => {
+        const tr = document.createElement('tr');
+        const isPractical = cs.type === 'Practical';
+        tr.innerHTML = `
+          <td><code>${cs.courseCode}</code></td>
+          <td><strong>${cs.courseName}</strong></td>
+          <td><span class="badge ${isPractical ? 'badge-warning' : 'badge-info'}">${cs.type}</span></td>
+          <td>${cs.present + cs.excused} / ${cs.total} sessions <span style="font-size:0.75rem; color:var(--text-muted);">(Weight ${cs.weight}x)</span></td>
+          <td><strong>${cs.percentage}%</strong></td>
+          <td>
+            <span class="badge ${cs.percentage >= 75 ? 'badge-success' : 'badge-danger'}">
+              ${cs.percentage >= 75 ? 'SAFE' : 'SHORTAGE'}
+            </span>
+          </td>
+        `;
+        wardTbody.appendChild(tr);
+      });
+    }
+
+    // Render Child's Weekly Timetable
+    const allTimetable = window.CollegeDB.getTimetable();
+    const childSlots = allTimetable.filter(t => (activeStudent.courses || []).includes(t.courseId));
+    const ttTbody = document.getElementById('parent-timetable-table')?.querySelector('tbody');
+    if (ttTbody) {
+      ttTbody.innerHTML = '';
+      childSlots.forEach(slot => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${slot.day}</strong></td>
+          <td>${slot.time}</td>
+          <td><code>${slot.courseCode}</code></td>
+          <td>${slot.courseName}</td>
+          <td><span class="badge badge-info">${slot.classroom}</span></td>
+          <td>${slot.professor}</td>
+        `;
+        ttTbody.appendChild(tr);
+      });
+    }
+
+    // Render Child's Leave Requests
+    const allLeaves = window.CollegeDB.getLeaveRequests().filter(l => l.studentId === activeStudent.id);
+    const courses = window.CollegeDB.getCourses();
+    const leaveTbody = document.getElementById('parent-leave-table')?.querySelector('tbody');
+    if (leaveTbody) {
+      leaveTbody.innerHTML = '';
+      allLeaves.forEach(l => {
+        const cObj = courses.find(c => c.id === l.courseId);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${l.date}</td>
+          <td><strong>${cObj ? cObj.code : l.courseId}</strong></td>
+          <td>${l.reason}</td>
+          <td><span class="badge ${l.status === 'approved' ? 'badge-success' : l.status === 'rejected' ? 'badge-danger' : 'badge-warning'}">${l.status.toUpperCase()}</span></td>
+        `;
+        leaveTbody.appendChild(tr);
+      });
+    }
+
+    // Set up Child Selector event listener
+    if (selectEl) {
+      selectEl.onchange = (e) => {
+        currentUser.wardStudentId = e.target.value;
+        renderParentDashboard();
+      };
+    }
+
+    // Set up Leave Modal button listener
+    const openLeaveBtn = document.getElementById('parent-open-leave-modal-btn');
+    if (openLeaveBtn) openLeaveBtn.onclick = () => openParentLeaveModal(activeStudent);
+
+    const exportBtn = document.getElementById('parent-export-report-btn');
+    if (exportBtn) exportBtn.onclick = () => window.print();
+  }
+
+  function openParentLeaveModal(student) {
+    const modal = document.getElementById('parent-apply-leave-modal');
+    const courseSel = document.getElementById('parent-leave-course-select');
+    if (courseSel) {
+      courseSel.innerHTML = '';
+      const courses = window.CollegeDB.getCourses().filter(c => (student.courses || []).includes(c.id));
+      courses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = `${c.code} - ${c.name} (${c.type || 'Lecture'})`;
+        courseSel.appendChild(opt);
+      });
+    }
+    if (modal) modal.classList.add('active');
+  }
+
+  function handleParentLeaveSubmit(e) {
+    e.preventDefault();
+    const courseId = document.getElementById('parent-leave-course-select').value;
+    const date = document.getElementById('parent-leave-date-input').value;
+    const reason = document.getElementById('parent-leave-reason-input').value.trim();
+
+    const studentId = currentUser.wardStudentId;
+    window.CollegeDB.submitLeaveRequest(studentId, courseId, date, `[Parent Request] ${reason}`);
+    showToast('Leave request submitted on behalf of student.', 'success');
+    document.getElementById('parent-apply-leave-modal')?.classList.remove('active');
+    renderParentDashboard();
   }
 
   // RUN INITIALIZER

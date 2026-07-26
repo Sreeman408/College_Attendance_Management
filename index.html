@@ -252,6 +252,12 @@
             </a>
           </li>
           <li>
+            <a class="nav-link" data-tab="admin-edit-parent">
+              <i class="fa-solid fa-users-line"></i>
+              <span>Manage Parents</span>
+            </a>
+          </li>
+          <li>
             <a class="nav-link" data-tab="admin-edit-timetable">
               <i class="fa-solid fa-calendar-week"></i>
               <span>Manage Timetable</span>
@@ -650,8 +656,35 @@
                   <tr>
                     <th>Subject Code</th>
                     <th>Subject Name</th>
+                    <th>Type</th>
                     <th>Department</th>
                     <th>Allocated Faculty Professors</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Parent Editor -->
+        <div class="view-panel" id="view-admin-edit-parent">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title"><i class="fa-solid fa-users-line"></i> Parent & Guardian Accounts</h2>
+              <button class="btn btn-primary btn-sm" id="open-add-parent-btn"><i class="fa-solid fa-plus"></i> Add Parent Account</button>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table" id="admin-parents-editor-table">
+                <thead>
+                  <tr>
+                    <th>Parent Name</th>
+                    <th>Login ID</th>
+                    <th>Email</th>
+                    <th>Linked Student(s)</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -1013,20 +1046,96 @@
 
         <!-- ==================== PARENT PANEL ==================== -->
         <div class="view-panel" id="view-parent-dashboard">
-          <div class="card">
-            <div class="card-header">
-              <h2 class="card-title"><i class="fa-solid fa-users"></i> Ward Academic Attendance Monitor</h2>
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header" style="flex-wrap: wrap; gap: 12px; align-items:center; justify-content:space-between;">
+              <h2 class="card-title" style="margin:0;"><i class="fa-solid fa-users"></i> Ward Academic Attendance Monitor</h2>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <label for="parent-child-select" style="font-size:0.85rem; font-weight:700; margin:0;">Select Child:</label>
+                <select id="parent-child-select" class="form-control" style="width: auto; min-width: 220px; padding: 6px 12px; font-weight:600;"></select>
+              </div>
             </div>
-            <div id="parent-ward-info" style="font-size:0.95rem; margin-bottom:16px;">-</div>
+            <div id="parent-ward-info" style="font-size:0.95rem; line-height:1.6; margin: 12px 0 16px 0; color:var(--text-muted);">-</div>
+
+            <!-- Stats Overview Cards for Child -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px;">
+              <div class="stat-card" style="background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px;">
+                <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Overall Weighted Attendance Rate</div>
+                <div style="font-size: 2.2rem; font-weight: 800; color: var(--primary); margin: 6px 0;" id="parent-overall-percentage">0%</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">(1 Lab = 3 Lecture Sessions Weight)</div>
+              </div>
+              <div class="stat-card" style="background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px;">
+                <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700;">Eligibility Status</div>
+                <div style="margin-top: 12px;" id="parent-eligibility-badge"><span class="badge badge-success">Eligible</span></div>
+              </div>
+              <div class="stat-card" style="background: var(--bg-app); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 16px; display:flex; flex-direction:column; justify-content:center; gap:10px;">
+                <button class="btn btn-primary btn-sm" id="parent-open-leave-modal-btn" style="padding:8px 12px;"><i class="fa-solid fa-pen-to-square"></i> Apply Leave for Child</button>
+                <button class="btn btn-secondary btn-sm" id="parent-export-report-btn" style="padding:8px 12px;"><i class="fa-solid fa-download"></i> Export Attendance Report</button>
+              </div>
+            </div>
+
+            <!-- Attendance Shortage Banner -->
+            <div id="parent-shortage-alert" class="alert alert-danger" style="display:none; margin-bottom: 20px;">
+              <i class="fa-solid fa-triangle-exclamation"></i> <strong>ATTENDANCE SHORTAGE WARNING:</strong> Your child's attendance rate is below the mandatory 75% threshold. Please consult the department office.
+            </div>
+
+            <!-- Subject Wise Breakdown Table -->
+            <h3 style="font-size:1.05rem; font-weight:700; margin-bottom:12px; color:var(--text-main);"><i class="fa-solid fa-book-bookmark"></i> Subject-Wise Attendance Breakdown</h3>
             <div class="table-responsive">
               <table class="custom-table" id="parent-ward-table">
                 <thead>
                   <tr>
                     <th>Subject Code</th>
                     <th>Subject Name</th>
-                    <th>Lectures Attended</th>
+                    <th>Type</th>
+                    <th>Attended / Total</th>
                     <th>Attendance Rate</th>
                     <th>Eligibility Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Weekly Timetable for Child -->
+          <div class="card" style="margin-bottom: 20px;">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fa-solid fa-calendar-week"></i> Child's Weekly Class Timetable</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table" id="parent-timetable-table">
+                <thead>
+                  <tr>
+                    <th>Day</th>
+                    <th>Time Slot</th>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Classroom</th>
+                    <th>Professor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Leave History for Child -->
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title"><i class="fa-solid fa-envelope-open-text"></i> Child's Leave Application History</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table" id="parent-leave-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Reason</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1330,6 +1439,14 @@
           </div>
 
           <div class="form-group">
+            <label for="form-course-type">Subject Category / Type</label>
+            <select id="form-course-type" class="form-control" required>
+              <option value="Lecture">Lecture (1 Session = 1 Weight Unit)</option>
+              <option value="Practical">Practical / Lab (1 Session = 3 Weight Units)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
             <label for="form-course-dept">Department</label>
             <select id="form-course-dept" class="form-control" required>
               <option value="cse">Computer Science</option>
@@ -1341,6 +1458,82 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancel-course-modal">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Subject</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add/Edit Parent Account Modal -->
+  <div class="modal-overlay" id="parent-modal">
+    <div class="modal-container" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title" id="parent-modal-title">Add Parent Account</h3>
+        <button class="modal-close" id="close-parent-modal">&times;</button>
+      </div>
+      <form id="parent-form">
+        <div class="modal-body">
+          <input type="hidden" id="form-parent-id">
+          
+          <div class="form-group">
+            <label for="form-parent-name">Parent Full Name</label>
+            <input type="text" id="form-parent-name" class="form-control" placeholder="e.g. Mr. Robert Smith" required>
+          </div>
+
+          <div class="form-group">
+            <label for="form-parent-email">Email Address</label>
+            <input type="email" id="form-parent-email" class="form-control" placeholder="parent@example.com" required>
+          </div>
+
+          <div class="form-group">
+            <label for="form-parent-login">Portal Login ID</label>
+            <input type="text" id="form-parent-login" class="form-control" placeholder="e.g. parent_alice" required>
+          </div>
+
+          <div class="form-group">
+            <label for="form-parent-pass">Portal Password <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">(Leave blank to keep unchanged)</span></label>
+            <input type="password" id="form-parent-pass" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>Link Child / Student(s)</label>
+            <div id="form-parent-students-list" style="max-height: 160px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: var(--radius-sm); background: var(--bg-card); display:flex; flex-direction:column; gap:6px;">
+              <!-- Injected checkboxes -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-parent-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Parent Account</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Parent Apply Leave Modal -->
+  <div class="modal-overlay" id="parent-apply-leave-modal">
+    <div class="modal-container" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="modal-title"><i class="fa-solid fa-file-signature"></i> Request Leave for Child</h3>
+        <button class="modal-close" id="close-parent-leave-modal">&times;</button>
+      </div>
+      <form id="parent-leave-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="parent-leave-course-select">Select Subject</label>
+            <select id="parent-leave-course-select" class="form-control" required></select>
+          </div>
+          <div class="form-group">
+            <label for="parent-leave-date-input">Leave Date</label>
+            <input type="date" id="parent-leave-date-input" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="parent-leave-reason-input">Reason for Absence</label>
+            <input type="text" id="parent-leave-reason-input" class="form-control" placeholder="Provide valid reason..." required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-parent-leave-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Submit Leave Request</button>
         </div>
       </form>
     </div>

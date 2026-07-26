@@ -21,11 +21,12 @@
       { id: 'ece', name: 'Electronics & Communication', code: 'ECE' }
     ],
     courses: [
-      { id: 'cs101', name: 'Data Structures & Algorithms', code: 'CS-101', deptId: 'cse' },
-      { id: 'cs102', name: 'Database Management Systems', code: 'CS-102', deptId: 'cse' },
-      { id: 'cs103', name: 'Advanced Web Development', code: 'CS-103', deptId: 'cse' },
-      { id: 'it101', name: 'Information Security', code: 'IT-101', deptId: 'it' },
-      { id: 'ec101', name: 'Digital Logic Circuits', code: 'EC-101', deptId: 'ece' }
+      { id: 'cs101', name: 'Data Structures & Algorithms', code: 'CS-101', deptId: 'cse', type: 'Lecture' },
+      { id: 'cs101p', name: 'Data Structures & Algorithms Lab', code: 'CS-101-P', deptId: 'cse', type: 'Practical' },
+      { id: 'cs102', name: 'Database Management Systems', code: 'CS-102', deptId: 'cse', type: 'Lecture' },
+      { id: 'cs103', name: 'Advanced Web Development', code: 'CS-103', deptId: 'cse', type: 'Lecture' },
+      { id: 'it101', name: 'Information Security', code: 'IT-101', deptId: 'it', type: 'Lecture' },
+      { id: 'ec101', name: 'Digital Logic Circuits', code: 'EC-101', deptId: 'ece', type: 'Lecture' }
     ],
     admin: {
       loginId: 'admin101',
@@ -33,17 +34,21 @@
       name: 'Registrar (Admin Office)'
     },
     staff: [
-      { id: 'prof1', name: 'Dr. Alan Turing', email: 'a.turing@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs102'], loginId: 'staff_alan', password: 'staffpassword' },
+      { id: 'prof1', name: 'Dr. Alan Turing', email: 'a.turing@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs101p', 'cs102'], loginId: 'staff_alan', password: 'staffpassword' },
       { id: 'prof2', name: 'Prof. Grace Hopper', email: 'g.hopper@annamalai.edu', deptId: 'cse', courses: ['cs103'], loginId: 'staff_grace', password: 'staffpassword' },
       { id: 'prof3', name: 'Dr. Edgar Codd', email: 'e.codd@annamalai.edu', deptId: 'it', courses: ['it101'], loginId: 'staff_codd', password: 'staffpassword' },
       { id: 'prof4', name: 'Prof. Claude Shannon', email: 'c.shannon@annamalai.edu', deptId: 'ece', courses: ['ec101'], loginId: 'staff_shannon', password: 'staffpassword' }
     ],
     students: [
-      { id: 'std1', name: 'Alice Smith', roll: 'CSE-2026-01', email: 'alice.s@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs102', 'cs103'], loginId: 'student_alice', password: 'studentpassword' },
-      { id: 'std2', name: 'Bob Johnson', roll: 'CSE-2026-02', email: 'bob.j@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs103'], loginId: 'student_bob', password: 'studentpassword' },
+      { id: 'std1', name: 'Alice Smith', roll: 'CSE-2026-01', email: 'alice.s@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs101p', 'cs102', 'cs103'], loginId: 'student_alice', password: 'studentpassword' },
+      { id: 'std2', name: 'Bob Johnson', roll: 'CSE-2026-02', email: 'bob.j@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs101p', 'cs103'], loginId: 'student_bob', password: 'studentpassword' },
       { id: 'std3', name: 'Charlie Brown', roll: 'CSE-2026-03', email: 'charlie.b@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs102'], loginId: 'student_charlie', password: 'studentpassword' },
       { id: 'std4', name: 'Diana Prince', roll: 'CSE-2026-04', email: 'diana.p@annamalai.edu', deptId: 'cse', courses: ['cs102', 'cs103'], loginId: 'student_diana', password: 'studentpassword' },
-      { id: 'std5', name: 'Evan Wright', roll: 'CSE-2026-05', email: 'evan.w@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs102', 'cs103'], loginId: 'student_evan', password: 'studentpassword' }
+      { id: 'std5', name: 'Evan Wright', roll: 'CSE-2026-05', email: 'evan.w@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs101p', 'cs102', 'cs103'], loginId: 'student_evan', password: 'studentpassword' }
+    ],
+    parents: [
+      { id: 'parent1', name: 'Robert Smith', email: 'r.smith@gmail.com', loginId: 'parent_alice', password: 'parentpassword', studentIds: ['std1'], question: "What is your mother's maiden name?", answer: 'smith' },
+      { id: 'parent2', name: 'Mary Johnson', email: 'm.johnson@gmail.com', loginId: 'parent_bob', password: 'parentpassword', studentIds: ['std2', 'std3'], question: "What is your mother's maiden name?", answer: 'johnson' }
     ],
     timetable: [
       { id: 'tt1', day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', classroom: 'Lecture Hall 101', staffId: 'prof1' },
@@ -54,7 +59,7 @@
       { id: 'tt6', day: 'Wednesday', time: '11:00 AM - 12:30 PM', courseId: 'cs101', classroom: 'Lecture Hall 101', staffId: 'prof1' },
       { id: 'tt7', day: 'Thursday', time: '09:00 AM - 10:30 AM', courseId: 'cs103', classroom: 'Computer Lab 3', staffId: 'prof2' },
       { id: 'tt8', day: 'Thursday', time: '11:00 AM - 12:30 PM', courseId: 'cs102', classroom: 'Lecture Hall 204', staffId: 'prof1' },
-      { id: 'tt9', day: 'Friday', time: '09:00 AM - 10:30 AM', courseId: 'ec101', classroom: 'ECE Lab A', staffId: 'prof4' },
+      { id: 'tt9', day: 'Friday', time: '09:00 AM - 10:30 AM', courseId: 'cs101p', classroom: 'CS Hardware Lab', staffId: 'prof1' },
       { id: 'tt10', day: 'Friday', time: '11:00 AM - 12:30 PM', courseId: 'it101', classroom: 'Lecture Hall 102', staffId: 'prof3' }
     ],
     attendance: [],
@@ -161,27 +166,34 @@
         }
       }
 
-      // Parents
+      // Courses type migration
+      if (this.data.courses) {
+        for (let c of this.data.courses) {
+          if (!c.type) {
+            c.type = (c.code.endsWith('-P') || c.name.toLowerCase().includes('lab') || c.name.toLowerCase().includes('practical')) ? 'Practical' : 'Lecture';
+            migrated = true;
+          }
+        }
+      }
+
+      // Parents migration (ensure studentIds array)
       if (!this.data.parents) {
-        this.data.parents = [];
-        if (this.data.students) {
-          for (let s of this.data.students) {
-            const parentPass = await this.hashPassword('parentpassword');
-            const parentAns = await this.hashPassword('smith');
-            this.data.parents.push({
-              id: 'parent_' + s.id,
-              name: `Parent of ${s.name}`,
-              studentId: s.id,
-              loginId: 'parent_' + s.loginId.replace('student_', ''),
-              password: parentPass,
-              question: "What is your mother's maiden name?",
-              answer: parentAns
-            });
+        this.data.parents = DEFAULT_DB.parents || [];
+        for (let p of this.data.parents) {
+          if (!isHash(p.password)) {
+            p.password = await this.hashPassword(p.password);
+          }
+          if (!isHash(p.answer)) {
+            p.answer = await this.hashPassword(p.answer);
           }
         }
         migrated = true;
       } else {
         for (let p of this.data.parents) {
+          if (!Array.isArray(p.studentIds)) {
+            p.studentIds = p.studentId ? [p.studentId] : [];
+            migrated = true;
+          }
           if (!isHash(p.password)) {
             p.password = await this.hashPassword(p.password);
             migrated = true;
@@ -581,21 +593,27 @@
     }
 
     authenticateParent(loginId, hashedPassword) {
-      const parent = this.data.parents.find(p => 
+      const parent = (this.data.parents || []).find(p => 
         p.loginId.toLowerCase() === loginId.toLowerCase() && 
         p.password === hashedPassword
       );
 
       if (parent) {
-        const student = this.getStudents().find(s => s.id === parent.studentId);
+        const studentIds = Array.isArray(parent.studentIds) ? parent.studentIds : (parent.studentId ? [parent.studentId] : []);
+        const students = this.getStudents().filter(s => studentIds.includes(s.id));
+        const activeStudent = students[0] || null;
+        
         return {
           role: 'parent',
           user: {
             id: parent.id,
             name: parent.name,
-            email: `guardian.${student ? student.email : 'parent@annamalai.edu'}`,
-            wardStudentId: parent.studentId,
-            ward: student
+            email: parent.email || 'parent@annamalai.edu',
+            loginId: parent.loginId,
+            studentIds: studentIds,
+            wardStudentId: activeStudent ? activeStudent.id : null,
+            ward: activeStudent,
+            linkedStudents: students
           }
         };
       }
@@ -789,11 +807,20 @@
               if (matchedDept) deptId = matchedDept.id;
             }
 
+            const rawType = (rec.type || rec.courseType || '').trim();
+            let cType = 'Lecture';
+            if (rawType.toLowerCase() === 'practical' || rawType.toLowerCase() === 'lab') {
+              cType = 'Practical';
+            } else if (rawCode.endsWith('-P') || rawName.toLowerCase().includes('lab') || rawName.toLowerCase().includes('practical')) {
+              cType = 'Practical';
+            }
+
             const cleanCourseId = rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
             course = {
               id: cleanCourseId || ('course_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)),
               code: rawCode,
               name: rawName || rawCode,
+              type: cType,
               deptId: deptId
             };
             this.data.courses.push(course);
@@ -996,6 +1023,44 @@
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'STAFF_DELETE', `Deleted staff ${st ? st.name : staffId}`);
     }
 
+    // --- PARENT MANAGEMENT ---
+    async addOrUpdateParent(p, user) {
+      const isHash = (str) => /^[a-f0-9]{64}$/i.test(str);
+      if (p.password && !isHash(p.password)) {
+        p.password = await this.hashPassword(p.password);
+      }
+      if (p.answer && !isHash(p.answer)) {
+        p.answer = await this.hashPassword(p.answer.trim().toLowerCase());
+      } else if (!p.answer) {
+        p.question = p.question || "What is your mother's maiden name?";
+        p.answer = await this.hashPassword("smith");
+      }
+
+      p.studentIds = Array.isArray(p.studentIds) ? p.studentIds : [];
+
+      if (p.id) {
+        const idx = this.data.parents.findIndex(x => x.id === p.id);
+        if (idx !== -1) {
+          if (!p.password) p.password = this.data.parents[idx].password;
+          this.data.parents[idx] = { ...this.data.parents[idx], ...p };
+        }
+      } else {
+        p.id = 'parent_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        if (!p.password) p.password = await this.hashPassword('parentpassword');
+        this.data.parents.push(p);
+      }
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_UPDATE', `Saved parent account ${p.name} (${p.loginId})`);
+      return p;
+    }
+
+    deleteParent(parentId, user) {
+      const p = this.data.parents.find(x => x.id === parentId);
+      this.data.parents = this.data.parents.filter(x => x.id !== parentId);
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_DELETE', `Deleted parent account ${p ? p.name : parentId}`);
+    }
+
     // --- QR CODE ATTENDANCE VERIFICATION ---
     markStudentPresentViaQR(studentId, courseId, date, token) {
       const qrTime = parseInt(token);
@@ -1043,6 +1108,9 @@
 
     // --- COURSE MANAGEMENT ---
     addOrUpdateCourse(c, user) {
+      if (!c.type) {
+        c.type = (c.code && (c.code.endsWith('-P') || c.name.toLowerCase().includes('lab') || c.name.toLowerCase().includes('practical'))) ? 'Practical' : 'Lecture';
+      }
       if (c.id) {
         const idx = this.data.courses.findIndex(x => x.id === c.id);
         if (idx !== -1) {
@@ -1053,7 +1121,7 @@
         this.data.courses.push(c);
       }
       this.save();
-      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'COURSE_UPDATE', `Saved course ${c.code} (${c.name})`);
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'COURSE_UPDATE', `Saved course ${c.code} (${c.name}) [Type: ${c.type}]`);
     }
 
     deleteCourse(courseId, user) {
@@ -1255,6 +1323,15 @@
       const student = this.data.students.find(s => s.id === studentId);
       if (!student) return null;
 
+      // Helper: get weight for a course (1 Lab / Practical = 3 Lecture sessions)
+      const getCourseWeight = (courseId) => {
+        const c = this.data.courses.find(x => x.id === courseId);
+        if (!c) return 1;
+        if (c.type === 'Practical' || c.type === 'Lab') return 3;
+        if (c.code && (c.code.endsWith('-P') || c.name.toLowerCase().includes('lab') || c.name.toLowerCase().includes('practical'))) return 3;
+        return 1;
+      };
+
       // Exclude attendance records corresponding to cancelled lectures
       const attRecords = this.data.attendance.filter(a => {
         if (a.studentId !== studentId) return false;
@@ -1263,16 +1340,30 @@
         );
         return !isCancelled;
       });
-      const totalSessions = attRecords.length;
 
-      const present = attRecords.filter(a => a.status === 'present').length;
-      const late = attRecords.filter(a => a.status === 'late').length;
-      const absent = attRecords.filter(a => a.status === 'absent').length;
-      const excused = attRecords.filter(a => a.status === 'excused').length;
+      const rawTotalSessions = attRecords.length;
+      const rawPresent = attRecords.filter(a => a.status === 'present').length;
+      const rawLate = attRecords.filter(a => a.status === 'late').length;
+      const rawAbsent = attRecords.filter(a => a.status === 'absent').length;
+      const rawExcused = attRecords.filter(a => a.status === 'excused').length;
 
-      // Late counts as 0.8 attendance credit, absent 0.0, present 1.0, excused 1.0
-      const adjustedPresent = present + excused + (late * 0.8);
-      const overallPercentage = totalSessions > 0 ? Math.round((adjustedPresent / totalSessions) * 100) : 100;
+      // 3x Practical Weighted calculation across all courses
+      let weightedTotalSessions = 0;
+      let weightedAdjustedPresent = 0;
+
+      attRecords.forEach(a => {
+        const weight = getCourseWeight(a.courseId);
+        weightedTotalSessions += weight;
+        if (a.status === 'present' || a.status === 'excused') {
+          weightedAdjustedPresent += (1.0 * weight);
+        } else if (a.status === 'late') {
+          weightedAdjustedPresent += (0.8 * weight);
+        }
+      });
+
+      const overallPercentage = weightedTotalSessions > 0 
+        ? Math.round((weightedAdjustedPresent / weightedTotalSessions) * 100) 
+        : 100;
 
       // Helper to count remaining occurrences of week days between today and semester end (Nov 30, 2026)
       const getRemainingOccurrences = (dayOfWeekStr, endDateStr) => {
@@ -1298,9 +1389,10 @@
       const semesterEndDate = "2026-11-30";
 
       // Map course specific percentages
-      const courseStats = student.courses.map(courseId => {
+      const courseStats = (student.courses || []).map(courseId => {
         const course = this.data.courses.find(c => c.id === courseId);
         const courseAtt = attRecords.filter(a => a.courseId === courseId);
+        const weight = getCourseWeight(courseId);
         
         const cTotal = courseAtt.length;
         const cPresent = courseAtt.filter(a => a.status === 'present').length;
@@ -1328,33 +1420,44 @@
         }).length;
         
         remainingClasses = Math.max(0, remainingClasses - futureCancelledCount);
-        const estimatedSemesterTotal = cTotal + remainingClasses;
-        const neededFor75 = Math.max(0, Math.ceil(0.75 * estimatedSemesterTotal - cAdjusted));
+        
+        const cWeightedTotal = cTotal * weight;
+        const cWeightedAdjusted = cAdjusted * weight;
+        const estimatedSemesterTotalWeighted = (cTotal + remainingClasses) * weight;
+        const neededWeightedFor75 = Math.max(0, Math.ceil(0.75 * estimatedSemesterTotalWeighted - cWeightedAdjusted));
+        const neededFor75 = Math.ceil(neededWeightedFor75 / weight);
 
         return {
           courseId: courseId,
           courseCode: course ? course.code : 'UNKNOWN',
           courseName: course ? course.name : 'Unknown Subject',
+          type: course ? (course.type || 'Lecture') : 'Lecture',
+          weight: weight,
           total: cTotal,
           present: cPresent,
           late: cLate,
           absent: cAbsent,
           excused: cExcused,
+          adjustedPresent: cAdjusted,
           percentage: cPct,
+          remainingClasses: remainingClasses,
           neededFor75: neededFor75,
-          remainingClasses: remainingClasses
+          isShortage: cPct < (this.data.settings ? this.data.settings.minAttendancePct : 75)
         };
-      });;
+      });
 
       return {
-        student,
-        totalSessions,
-        present,
-        late,
-        absent,
-        excused,
-        overallPercentage,
-        courseStats
+        student: student,
+        totalSessions: rawTotalSessions,
+        weightedTotalSessions: weightedTotalSessions,
+        present: rawPresent,
+        late: rawLate,
+        absent: rawAbsent,
+        excused: rawExcused,
+        adjustedPresent: Math.round(weightedAdjustedPresent * 10) / 10,
+        overallPercentage: overallPercentage,
+        isShortage: overallPercentage < (this.data.settings ? this.data.settings.minAttendancePct : 75),
+        courseStats: courseStats
       };
     }
   }
