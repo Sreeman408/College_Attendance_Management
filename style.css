@@ -1464,4 +1464,51 @@ body {
   color: #484f58 !important;
 }
 
+/* --- PRINT MEDIA QUERY FOR UNIVERSITY LETTERHEAD --- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  #view-student-dashboard, #view-student-dashboard * {
+    visibility: visible;
+  }
+  
+  #view-student-dashboard {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  /* Make print letterhead visible */
+  .print-letterhead {
+    display: block !important;
+    margin-bottom: 24px;
+  }
+
+  /* Hide buttons, forms, sidebar, bottom navigation in print */
+  .sidebar, 
+  .bottom-nav, 
+  .lang-switcher, 
+  .theme-toggle, 
+  .btn, 
+  .card-layout-2col > :last-child, 
+  .alert-banner, 
+  #toast-container,
+  .dev-console-toggle,
+  .dev-console-drawer {
+    display: none !important;
+  }
+
+  .card {
+    border: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+}
+
 

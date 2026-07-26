@@ -491,8 +491,46 @@
         <!-- Admin Audit Trail -->
         <div class="view-panel" id="view-admin-audit">
           <div class="card">
-            <div class="card-header">
-              <h2 class="card-title"><i class="fa-solid fa-shield-cat"></i> System Activity Audit Trail</h2>
+            <div class="card-header" style="flex-direction: column; align-items: stretch; gap: 12px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2 class="card-title"><i class="fa-solid fa-shield-cat"></i> System Activity Audit Trail</h2>
+              </div>
+              <div style="display:flex; gap:12px; flex-wrap:wrap; background-color: var(--bg-app); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <div style="flex: 1; min-width: 150px; display:flex; flex-direction:column; gap:4px;">
+                  <label for="audit-filter-date" style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">Date Filter</label>
+                  <input type="date" id="audit-filter-date" class="form-control" style="padding: 6px 10px; font-size: 0.82rem;">
+                </div>
+                <div style="flex: 1; min-width: 150px; display:flex; flex-direction:column; gap:4px;">
+                  <label for="audit-filter-role" style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">Role Filter</label>
+                  <select id="audit-filter-role" class="form-control" style="padding: 6px 10px; font-size: 0.82rem;">
+                    <option value="">All Roles</option>
+                    <option value="ADMIN">ADMIN</option>
+                    <option value="FACULTY">FACULTY</option>
+                    <option value="STUDENT">STUDENT</option>
+                    <option value="PARENT">PARENT</option>
+                  </select>
+                </div>
+                <div style="flex: 1; min-width: 150px; display:flex; flex-direction:column; gap:4px;">
+                  <label for="audit-filter-action" style="font-size:0.75rem; font-weight:600; color:var(--text-muted);">Action Filter</label>
+                  <select id="audit-filter-action" class="form-control" style="padding: 6px 10px; font-size: 0.82rem;">
+                    <option value="">All Actions</option>
+                    <option value="LOGIN">LOGIN</option>
+                    <option value="PASSWORD_RESET">PASSWORD_RESET</option>
+                    <option value="STUDENT_UPDATE">STUDENT_UPDATE</option>
+                    <option value="STAFF_UPDATE">STAFF_UPDATE</option>
+                    <option value="COURSE_UPDATE">COURSE_UPDATE</option>
+                    <option value="TIMETABLE_UPDATE">TIMETABLE_UPDATE</option>
+                    <option value="BULK_STUDENTS">BULK_STUDENTS</option>
+                    <option value="BULK_STAFF">BULK_STAFF</option>
+                    <option value="BULK_TIMETABLE">BULK_TIMETABLE</option>
+                    <option value="CLASS_CANCELLED">CLASS_CANCELLED</option>
+                    <option value="QR_ATTENDANCE">QR_ATTENDANCE</option>
+                  </select>
+                </div>
+                <div style="display:flex; align-items: flex-end; gap:8px;">
+                  <button class="btn btn-secondary btn-sm" id="audit-filter-clear-btn" style="padding: 8px 12px; font-size: 0.8rem;"><i class="fa-solid fa-eraser"></i> Clear</button>
+                </div>
+              </div>
             </div>
             <div class="table-responsive">
               <table class="custom-table" id="admin-audit-table">
@@ -620,6 +658,31 @@
               </table>
             </div>
           </div>
+
+          <!-- Substitute Assignments Registry -->
+          <div class="card" style="margin-top:20px;">
+            <div class="card-header">
+              <h2 class="card-title">Substitute Faculty Assignments</h2>
+              <button class="btn btn-primary btn-sm" id="open-add-substitute-btn"><i class="fa-solid fa-user-plus"></i> Assign Substitute</button>
+            </div>
+            <div class="table-responsive">
+              <table class="custom-table" id="admin-substitute-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Original Faculty</th>
+                    <th>Substitute Faculty</th>
+                    <th>Notes</th>
+                    <th>Assigned By</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Injected dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- ==================== STAFF PANELS ==================== -->
@@ -709,6 +772,21 @@
 
         <!-- Student Dashboard -->
         <div class="view-panel" id="view-student-dashboard">
+          
+          <!-- Print-only Letterhead -->
+          <div class="print-letterhead" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px;">
+              <img src="assets/logo.png" alt="Annamalai University Logo" style="height: 65px; width: 65px; object-fit: contain;">
+              <div style="text-align: left;">
+                <h1 style="font-size: 1.6rem; font-weight: 700; color: #800020; margin: 0; text-transform: uppercase; font-family: 'Georgia', serif;">Annamalai University</h1>
+                <p style="font-size: 0.78rem; font-weight: 600; color: #333; margin: 2px 0 0 0; text-transform: uppercase; letter-spacing: 1px;">Office of the Registrar | Attendance Registry Report</p>
+              </div>
+            </div>
+            <div style="font-size: 0.72rem; color: #555; display: flex; justify-content: space-between; margin-top: 12px; font-weight: 500; border-bottom: 2px solid #800020; padding-bottom: 8px;">
+              <span>Chidambaram, Tamil Nadu 608002, India</span>
+              <span id="print-report-timestamp">Report Generated: </span>
+            </div>
+          </div>
           
           <div class="alert-banner" id="student-shortage-banner" style="display: none;">
             <i class="fa-solid fa-triangle-exclamation"></i>
@@ -942,10 +1020,10 @@
         <button class="modal-close" id="close-preview-modal">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="preview-stats-bar">
-          <span class="stat-pill pill-valid" id="preview-valid-count">Valid: 0</span>
-          <span class="stat-pill pill-dup" id="preview-dup-count">Duplicates: 0</span>
-          <span class="stat-pill pill-error" id="preview-error-count">Errors: 0</span>
+        <div class="preview-tabs" id="preview-tabs" style="display:flex; gap:12px; margin-bottom:14px; border-bottom:1px solid var(--border-color); padding-bottom:10px;">
+          <button type="button" class="btn btn-secondary btn-sm active" id="btn-tab-add" style="padding: 6px 12px; font-weight:600;"><i class="fa-solid fa-plus-circle"></i> To Add (<span id="preview-valid-count">0</span>)</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-tab-update" style="padding: 6px 12px; font-weight:600;"><i class="fa-solid fa-pen-to-square"></i> To Update (<span id="preview-dup-count">0</span>)</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-tab-error" style="padding: 6px 12px; font-weight:600; color:var(--danger); border-color:var(--danger-light);"><i class="fa-solid fa-circle-exclamation"></i> Warnings / Errors (<span id="preview-error-count">0</span>)</button>
         </div>
         <div class="preview-table-container">
           <table class="custom-table" id="preview-data-table">
@@ -1275,6 +1353,66 @@
           <button type="submit" class="btn btn-primary">Save Lecture Slot</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Add Substitute Faculty Modal -->
+  <div class="modal-overlay" id="substitute-modal">
+    <div class="modal-container" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Assign Substitute Faculty</h3>
+        <button class="modal-close" id="close-substitute-modal">&times;</button>
+      </div>
+      <form id="substitute-form">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="form-sub-date">Date of Lecture</label>
+            <input type="date" id="form-sub-date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="form-sub-course">Subject</label>
+            <select id="form-sub-course" class="form-control" required>
+              <!-- Dyn -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-sub-original">Original Professor</label>
+            <select id="form-sub-original" class="form-control" required>
+              <!-- Dyn -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-sub-substitute">Substitute Professor</label>
+            <select id="form-sub-substitute" class="form-control" required>
+              <!-- Dyn -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="form-sub-notes">Additional Notes</label>
+            <input type="text" id="form-sub-notes" class="form-control" placeholder="e.g. Leave substitute coverage">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancel-substitute-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Custom Confirmation Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-container" style="max-width: 380px; text-align: center;">
+      <div class="modal-header" style="justify-content: center; border-bottom: none;">
+        <h3 class="modal-title" id="confirm-modal-title" style="color: var(--danger);"><i class="fa-solid fa-circle-exclamation"></i> Confirm Action</h3>
+      </div>
+      <div class="modal-body" style="padding: 10px 20px;">
+        <p id="confirm-modal-msg" style="font-size: 0.92rem; line-height: 1.5; color: var(--text-primary);">Are you sure you want to perform this destructive action?</p>
+      </div>
+      <div class="modal-footer" style="justify-content: center; gap: 12px; border-top: none; padding-top: 0;">
+        <button type="button" class="btn btn-secondary" id="confirm-modal-cancel-btn">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-modal-confirm-btn">Proceed</button>
+      </div>
     </div>
   </div>
 

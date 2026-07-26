@@ -833,13 +833,19 @@
         return { success: false, error: err.message };
       }
     }
-
     // --- METRIC & STATISTICAL CALCULATORS ---
     getStudentStats(studentId) {
       const student = this.data.students.find(s => s.id === studentId);
       if (!student) return null;
 
-      const attRecords = this.data.attendance.filter(a => a.studentId === studentId);
+      // Exclude attendance records corresponding to cancelled lectures
+      const attRecords = this.data.attendance.filter(a => {
+        if (a.studentId !== studentId) return false;
+        const isCancelled = (this.data.cancelledClasses || []).some(
+          c => c.courseId === a.courseId && c.date === a.date
+        );
+        return !isCancelled;
+      });
       const totalSessions = attRecords.length;
 
       const present = attRecords.filter(a => a.status === 'present').length;
@@ -850,6 +856,29 @@
       // Late counts as 0.8 attendance credit, absent 0.0, present 1.0, excused 1.0
       const adjustedPresent = present + excused + (late * 0.8);
       const overallPercentage = totalSessions > 0 ? Math.round((adjustedPresent / totalSessions) * 100) : 100;
+
+      // Helper to count remaining occurrences of week days between today and semester end (Nov 30, 2026)
+      const getRemainingOccurrences = (dayOfWeekStr, endDateStr) => {
+        const daysMap = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
+        const targetDay = daysMap[dayOfWeekStr.toLowerCase()];
+        if (targetDay === undefined) return 0;
+        
+        let count = 0;
+        let current = new Date();
+        const end = new Date(endDateStr);
+        current.setHours(0, 0, 0, 0);
+        end.setHours(0, 0, 0, 0);
+        
+        while (current <= end) {
+          if (current.getDay() === targetDay) {
+            count++;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+        return count;
+      };
+
+      const semesterEndDate = "2026-11-30";
 
       // Map course specific percentages
       const courseStats = student.courses.map(courseId => {
@@ -865,11 +894,24 @@
         const cAdjusted = cPresent + cExcused + (cLate * 0.8);
         const cPct = cTotal > 0 ? Math.round((cAdjusted / cTotal) * 100) : 100;
 
-        // Attendance Prediction & Shortage Forecasting
-        // Assume semester has ~20 total classes per subject.
-        const estimatedSemesterTotal = Math.max(cTotal, 20);
-        const remainingClasses = estimatedSemesterTotal - cTotal;
-        // Classes needed to maintain 75%
+        // Calculate dynamic remaining lectures based on weekly timetable
+        const courseTimetable = (this.data.timetable || []).filter(t => t.courseCode === (course ? course.code : ''));
+        let remainingClasses = 0;
+        courseTimetable.forEach(slot => {
+          remainingClasses += getRemainingOccurrences(slot.day, semesterEndDate);
+        });
+
+        // Subtract future scheduled classes that are already cancelled
+        const futureCancelledCount = (this.data.cancelledClasses || []).filter(c => {
+          if (c.courseId !== courseId) return false;
+          const cancelDate = new Date(c.date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return cancelDate >= today && cancelDate <= new Date(semesterEndDate);
+        }).length;
+        
+        remainingClasses = Math.max(0, remainingClasses - futureCancelledCount);
+        const estimatedSemesterTotal = cTotal + remainingClasses;
         const neededFor75 = Math.max(0, Math.ceil(0.75 * estimatedSemesterTotal - cAdjusted));
 
         return {
@@ -885,7 +927,7 @@
           neededFor75: neededFor75,
           remainingClasses: remainingClasses
         };
-      });
+      });;
 
       return {
         student,

@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const forgotModal = document.getElementById('forgot-modal');
   const qrModal = document.getElementById('qr-modal');
   const scannerModal = document.getElementById('scanner-modal');
+  const substituteModal = document.getElementById('substitute-modal');
   let html5QrScanner = null;
 
   // --- I18N DICTIONARY ---
@@ -138,6 +139,33 @@ document.addEventListener('DOMContentLoaded', () => {
       toast.style.transform = 'translateX(50px)';
       setTimeout(() => toast.remove(), 300);
     }, 4000);
+  }
+
+  function showConfirmDialog(title, message, onConfirm) {
+    const modal = document.getElementById('confirm-modal');
+    if (!modal) {
+      // Fallback if modal not present
+      if (confirm(message)) onConfirm();
+      return;
+    }
+    
+    document.getElementById('confirm-modal-title').innerText = title;
+    document.getElementById('confirm-modal-msg').innerText = message;
+    
+    const confirmBtn = document.getElementById('confirm-modal-confirm-btn');
+    const cancelBtn = document.getElementById('confirm-modal-cancel-btn');
+    
+    const cleanup = () => {
+      modal.classList.remove('active');
+    };
+    
+    confirmBtn.onclick = () => {
+      cleanup();
+      onConfirm();
+    };
+    
+    cancelBtn.onclick = cleanup;
+    modal.classList.add('active');
   }
 
   // --- THEME & LANGUAGE ---
@@ -349,6 +377,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-timetable-modal')?.addEventListener('click', () => timetableModal.classList.remove('active'));
     document.getElementById('cancel-timetable-modal')?.addEventListener('click', () => timetableModal.classList.remove('active'));
 
+    document.getElementById('open-add-substitute-btn')?.addEventListener('click', openSubstituteModal);
+    document.getElementById('close-substitute-modal')?.addEventListener('click', () => substituteModal.classList.remove('active'));
+    document.getElementById('cancel-substitute-modal')?.addEventListener('click', () => substituteModal.classList.remove('active'));
+    document.getElementById('substitute-form')?.addEventListener('submit', handleSubstituteFormSubmit);
+
     // Password strength meters
     document.getElementById('form-student-pass')?.addEventListener('input', (e) => updatePasswordMeter(e.target, document.getElementById('std-strength-bar')));
     document.getElementById('form-staff-pass')?.addEventListener('input', (e) => updatePasswordMeter(e.target, document.getElementById('staff-strength-bar')));
@@ -368,7 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reports & Export Triggers
     document.getElementById('export-student-csv-btn')?.addEventListener('click', () => exportStudentReport('csv'));
     document.getElementById('export-student-xlsx-btn')?.addEventListener('click', () => exportStudentReport('xlsx'));
-    document.getElementById('export-student-pdf-btn')?.addEventListener('click', () => window.print());
+    document.getElementById('export-student-pdf-btn')?.addEventListener('click', () => {
+      const ts = document.getElementById('print-report-timestamp');
+      if (ts) ts.innerText = `Report Generated: ${new Date().toLocaleString()}`;
+      window.print();
+    });
     document.getElementById('export-ics-btn')?.addEventListener('click', exportCalendarICS);
 
     // Student QR Scanner triggers
@@ -392,6 +429,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('import-db-backup-input')?.addEventListener('change', importDatabaseBackup);
     document.getElementById('reset-system-db-btn')?.addEventListener('click', resetDatabaseSystem);
     document.getElementById('download-upload-template-btn')?.addEventListener('click', downloadCSVTemplate);
+
+    // Admin Audit Filters
+    document.getElementById('audit-filter-date')?.addEventListener('change', renderAdminAudit);
+    document.getElementById('audit-filter-role')?.addEventListener('change', renderAdminAudit);
+    document.getElementById('audit-filter-action')?.addEventListener('change', renderAdminAudit);
+    document.getElementById('audit-filter-clear-btn')?.addEventListener('click', () => {
+      const dateInp = document.getElementById('audit-filter-date');
+      const roleSel = document.getElementById('audit-filter-role');
+      const actSel = document.getElementById('audit-filter-action');
+      if (dateInp) dateInp.value = '';
+      if (roleSel) roleSel.value = '';
+      if (actSel) actSel.value = '';
+      renderAdminAudit();
+    });
   }
 
   // --- PORTAL NAVIGATION & LOGIN ---
@@ -784,7 +835,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbody = document.getElementById('admin-audit-table').querySelector('tbody');
     tbody.innerHTML = '';
 
-    logs.forEach(l => {
+    const filterDate = document.getElementById('audit-filter-date')?.value;
+    const filterRole = document.getElementById('audit-filter-role')?.value;
+    const filterAction = document.getElementById('audit-filter-action')?.value;
+
+    let filteredLogs = logs;
+    if (filterDate) {
+      filteredLogs = filteredLogs.filter(l => {
+        const logDate = new Date(l.timestamp).toISOString().split('T')[0];
+        return logDate === filterDate;
+      });
+    }
+    if (filterRole) {
+      filteredLogs = filteredLogs.filter(l => l.role === filterRole);
+    }
+    if (filterAction) {
+      filteredLogs = filteredLogs.filter(l => l.action === filterAction);
+    }
+
+    filteredLogs.forEach(l => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><span style="font-size:0.75rem; color:var(--text-muted);">${new Date(l.timestamp).toLocaleString()}</span></td>
@@ -827,11 +896,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       tr.querySelector('.edit-btn').onclick = () => openStudentModal(s);
       tr.querySelector('.delete-btn').onclick = () => {
-        if (confirm(`Remove student profile for ${s.name}?`)) {
-          window.CollegeDB.deleteStudent(s.id, currentUser);
-          renderAdminStudentEditor();
-          showToast('Student deleted.', 'info');
-        }
+        showConfirmDialog(
+          'Delete Student Profile',
+          `Are you sure you want to remove the student profile for ${s.name}? This will delete their attendance records as well.`,
+          () => {
+            window.CollegeDB.deleteStudent(s.id, currentUser);
+            renderAdminStudentEditor();
+            showToast('Student deleted.', 'info');
+          }
+        );
       };
 
       tbody.appendChild(tr);
@@ -935,11 +1008,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       tr.querySelector('.edit-btn').onclick = () => openStaffModal(s);
       tr.querySelector('.delete-btn').onclick = () => {
-        if (confirm(`Remove professor ${s.name}?`)) {
-          window.CollegeDB.deleteStaff(s.id, currentUser);
-          renderAdminStaffEditor();
-          showToast('Faculty professor deleted.', 'info');
-        }
+        showConfirmDialog(
+          'Delete Faculty Professor',
+          `Are you sure you want to remove professor ${s.name}?`,
+          () => {
+            window.CollegeDB.deleteStaff(s.id, currentUser);
+            renderAdminStaffEditor();
+            showToast('Faculty professor deleted.', 'info');
+          }
+        );
       };
 
       tbody.appendChild(tr);
@@ -1041,11 +1118,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       tr.querySelector('.edit-btn').onclick = () => openCourseModal(c);
       tr.querySelector('.delete-btn').onclick = () => {
-        if (confirm(`Remove course ${c.code} - ${c.name}?`)) {
-          window.CollegeDB.deleteCourse(c.id, currentUser);
-          renderAdminCourseEditor();
-          showToast('Subject deleted.', 'info');
-        }
+        showConfirmDialog(
+          'Delete Subject Course',
+          `Are you sure you want to remove course ${c.code} - ${c.name}?`,
+          () => {
+            window.CollegeDB.deleteCourse(c.id, currentUser);
+            renderAdminCourseEditor();
+            showToast('Subject deleted.', 'info');
+          }
+        );
       };
 
       tbody.appendChild(tr);
@@ -1108,17 +1189,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
       tr.querySelector('.edit-btn').onclick = () => openTimetableModal(t);
       tr.querySelector('.delete-btn').onclick = () => {
-        if (confirm(`Remove timetable slot for ${t.courseCode} on ${t.day} (${t.time})?`)) {
-          window.CollegeDB.deleteTimetableSlot(t, currentUser);
-          renderAdminTimetableEditor();
-          showToast('Lecture slot removed.', 'info');
-        }
+        showConfirmDialog(
+          'Remove Lecture Slot',
+          `Are you sure you want to remove the timetable slot for ${t.courseCode} on ${t.day} (${t.time})?`,
+          () => {
+            window.CollegeDB.deleteTimetableSlot(t, currentUser);
+            renderAdminTimetableEditor();
+            showToast('Lecture slot removed.', 'info');
+          }
+        );
       };
 
       tbody.appendChild(tr);
     });
 
     document.getElementById('open-add-timetable-btn').onclick = () => openTimetableModal();
+    renderAdminSubstituteTable();
   }
 
   function openTimetableModal(slot = null) {
@@ -1180,6 +1266,94 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAdminTimetableEditor();
   }
 
+  function renderAdminSubstituteTable() {
+    const subs = window.CollegeDB.getSubstitutes ? window.CollegeDB.getSubstitutes() : [];
+    const tbody = document.getElementById('admin-substitute-table')?.querySelector('tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const courses = window.CollegeDB.getCourses();
+    const staff = window.CollegeDB.getStaff();
+
+    subs.forEach(s => {
+      const course = courses.find(c => c.id === s.courseId);
+      const origProf = staff.find(st => st.id === s.originalProfId);
+      const subProf = staff.find(st => st.id === s.substituteProfId);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${s.date}</strong></td>
+        <td><code>${course ? course.code : 'UNKNOWN'}</code> - ${course ? course.name : 'Unknown Subject'}</td>
+        <td>${origProf ? origProf.name : 'Original Faculty'}</td>
+        <td><span class="badge badge-warning">${subProf ? subProf.name : 'Substitute'}</span></td>
+        <td><em>${s.notes}</em></td>
+        <td>${s.assignedBy}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openSubstituteModal() {
+    const courses = window.CollegeDB.getCourses();
+    const staff = window.CollegeDB.getStaff();
+
+    const courseSel = document.getElementById('form-sub-course');
+    if (courseSel) {
+      courseSel.innerHTML = '';
+      courses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = `${c.code} - ${c.name}`;
+        courseSel.appendChild(opt);
+      });
+    }
+
+    const origSel = document.getElementById('form-sub-original');
+    if (origSel) origSel.innerHTML = '';
+    const subSel = document.getElementById('form-sub-substitute');
+    if (subSel) subSel.innerHTML = '';
+
+    staff.forEach(st => {
+      if (origSel) {
+        const opt1 = document.createElement('option');
+        opt1.value = st.id;
+        opt1.innerText = `${st.name} (${st.deptId.toUpperCase()})`;
+        origSel.appendChild(opt1);
+      }
+
+      if (subSel) {
+        const opt2 = document.createElement('option');
+        opt2.value = st.id;
+        opt2.innerText = `${st.name} (${st.deptId.toUpperCase()})`;
+        subSel.appendChild(opt2);
+      }
+    });
+
+    document.getElementById('substitute-form')?.reset();
+    const dateInput = document.getElementById('form-sub-date');
+    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+    substituteModal.classList.add('active');
+  }
+
+  function handleSubstituteFormSubmit(e) {
+    e.preventDefault();
+    const date = document.getElementById('form-sub-date').value;
+    const courseId = document.getElementById('form-sub-course').value;
+    const originalProfId = document.getElementById('form-sub-original').value;
+    const substituteProfId = document.getElementById('form-sub-substitute').value;
+    const notes = document.getElementById('form-sub-notes').value;
+
+    if (originalProfId === substituteProfId) {
+      showToast("Original professor and substitute professor cannot be the same.", "warning");
+      return;
+    }
+
+    window.CollegeDB.addSubstitute(originalProfId, substituteProfId, courseId, date, notes, currentUser);
+    showToast("Substitute faculty assigned successfully.", "success");
+    substituteModal.classList.remove('active');
+    renderAdminSubstituteTable();
+  }
+
   // ==========================================
   // --- UNIFIED ENTERPRISE BULK UPLOAD SYSTEM ---
   // ==========================================
@@ -1204,6 +1378,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-preview-modal')?.addEventListener('click', () => previewModal.classList.remove('active'));
     document.getElementById('cancel-preview-btn')?.addEventListener('click', () => previewModal.classList.remove('active'));
     document.getElementById('confirm-commit-upload-btn')?.addEventListener('click', commitParsedBatch);
+
+    document.getElementById('btn-tab-add')?.addEventListener('click', () => renderPreviewTable('add'));
+    document.getElementById('btn-tab-update')?.addEventListener('click', () => renderPreviewTable('update'));
+    document.getElementById('btn-tab-error')?.addEventListener('click', () => renderPreviewTable('error'));
   }
 
   function parseUploadedFile(file) {
@@ -1245,47 +1423,71 @@ document.addEventListener('DOMContentLoaded', () => {
     const validation = window.CollegeDB.validateBatch(targetType, dataRows);
     pendingParsedBatch = { type: targetType, mode: mode, rows: dataRows, validation: validation };
 
-    // Update Modal Preview Stats
-    document.getElementById('preview-valid-count').innerText = `Valid: ${validation.valid.length}`;
-    document.getElementById('preview-dup-count').innerText = `Duplicates: ${validation.duplicates.length}`;
-    document.getElementById('preview-error-count').innerText = `Errors: ${validation.errors.length}`;
+    // Update Modal Preview Stats (Subtract duplicates from valid to get net "To Add")
+    const dupCount = validation.duplicates.length;
+    const addCount = Math.max(0, validation.valid.length - dupCount);
+    const errCount = validation.errors.length;
 
-    // Render Preview Table
+    document.getElementById('preview-valid-count').innerText = addCount;
+    document.getElementById('preview-dup-count').innerText = dupCount;
+    document.getElementById('preview-error-count').innerText = errCount;
+
+    // Load default tab
+    renderPreviewTable('add');
+
+    previewModal.classList.add('active');
+  }
+
+  function renderPreviewTable(tabFilter) {
+    document.getElementById('btn-tab-add')?.classList.toggle('active', tabFilter === 'add');
+    document.getElementById('btn-tab-update')?.classList.toggle('active', tabFilter === 'update');
+    document.getElementById('btn-tab-error')?.classList.toggle('active', tabFilter === 'error');
+
     const tableEl = document.getElementById('preview-data-table');
     const thead = tableEl.querySelector('thead');
     const tbody = tableEl.querySelector('tbody');
     thead.innerHTML = '';
     tbody.innerHTML = '';
 
-    if (dataRows.length > 0) {
-      const keys = Object.keys(dataRows[0]);
-      const trH = document.createElement('tr');
-      trH.innerHTML = `<th>Row</th><th>Status</th>` + keys.map(k => `<th>${k}</th>`).join('');
-      thead.appendChild(trH);
+    if (!pendingParsedBatch || !pendingParsedBatch.rows || pendingParsedBatch.rows.length === 0) return;
+    const { rows, validation } = pendingParsedBatch;
 
-      dataRows.forEach((r, idx) => {
-        const rowNum = idx + 1;
-        const isErr = validation.errors.find(e => e.row === rowNum);
-        const isDup = validation.duplicates.find(d => d.row === rowNum);
+    const keys = Object.keys(rows[0]);
+    const trH = document.createElement('tr');
+    trH.innerHTML = `<th>Row</th><th>Status</th>` + keys.map(k => `<th>${k}</th>`).join('');
+    thead.appendChild(trH);
 
-        let rowClass = 'row-valid';
-        let badgeHtml = '<span class="badge badge-success">Valid</span>';
-        if (isErr) {
-          rowClass = 'row-error';
-          badgeHtml = `<span class="badge badge-danger" title="${isErr.error}">Error</span>`;
-        } else if (isDup) {
-          rowClass = 'row-duplicate';
-          badgeHtml = `<span class="badge badge-warning" title="${isDup.reason}">Duplicate</span>`;
-        }
+    rows.forEach((r, idx) => {
+      const rowNum = idx + 1;
+      const isErr = validation.errors.find(e => e.row === rowNum);
+      const isDup = validation.duplicates.find(d => d.row === rowNum);
 
-        const tr = document.createElement('tr');
-        tr.className = rowClass;
-        tr.innerHTML = `<td>${rowNum}</td><td>${badgeHtml}</td>` + keys.map(k => `<td>${r[k] !== undefined ? r[k] : ''}</td>`).join('');
-        tbody.appendChild(tr);
-      });
-    }
+      let matches = false;
+      if (tabFilter === 'add') {
+        matches = !isErr && !isDup;
+      } else if (tabFilter === 'update') {
+        matches = !isErr && !!isDup;
+      } else if (tabFilter === 'error') {
+        matches = !!isErr;
+      }
 
-    previewModal.classList.add('active');
+      if (!matches) return;
+
+      let rowClass = 'row-valid';
+      let badgeHtml = '<span class="badge badge-success">Valid</span>';
+      if (isErr) {
+        rowClass = 'row-error';
+        badgeHtml = `<span class="badge badge-danger" title="${isErr.error}">Error</span>`;
+      } else if (isDup) {
+        rowClass = 'row-duplicate';
+        badgeHtml = `<span class="badge badge-warning" title="${isDup.reason}">Duplicate</span>`;
+      }
+
+      const tr = document.createElement('tr');
+      tr.className = rowClass;
+      tr.innerHTML = `<td>${rowNum}</td><td>${badgeHtml}</td>` + keys.map(k => `<td>${r[k] !== undefined ? r[k] : ''}</td>`).join('');
+      tbody.appendChild(tr);
+    });
   }
 
   function commitParsedBatch() {
@@ -1364,11 +1566,15 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function resetDatabaseSystem() {
-    if (confirm("WARNING: Are you sure you want to reset all college records to initial defaults?")) {
-      window.CollegeDB.reset();
-      showToast('Database reset to factory defaults.', 'warning');
-      renderActiveView();
-    }
+    showConfirmDialog(
+      'Factory Reset System',
+      'WARNING: Are you sure you want to reset all college database records back to their factory defaults? This action is destructive and cannot be undone.',
+      () => {
+        window.CollegeDB.reset();
+        showToast('Database reset to factory defaults.', 'warning');
+        renderActiveView();
+      }
+    );
   }
 
   // ==========================================
@@ -1415,7 +1621,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderStaffMarker() {
     const courses = window.CollegeDB.getCourses();
-    const myCourseIds = currentUser.courses || [];
+    const myCourseIds = [...(currentUser.courses || [])];
+    
+    // Add courses where current user is assigned as substitute
+    const subs = window.CollegeDB.getSubstitutes ? window.CollegeDB.getSubstitutes() : [];
+    subs.forEach(s => {
+      if (s.substituteProfId === currentUser.id && !myCourseIds.includes(s.courseId)) {
+        myCourseIds.push(s.courseId);
+      }
+    });
+
     const select = document.getElementById('marker-course-select');
     select.innerHTML = '';
 
