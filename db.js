@@ -46,16 +46,16 @@
       { id: 'std5', name: 'Evan Wright', roll: 'CSE-2026-05', email: 'evan.w@annamalai.edu', deptId: 'cse', courses: ['cs101', 'cs102', 'cs103'], loginId: 'student_evan', password: 'studentpassword' }
     ],
     timetable: [
-      { day: 'Monday', time: '09:00 AM - 10:30 AM', courseCode: 'CS-101', courseName: 'Data Structures & Algorithms', classroom: 'Lecture Hall 101', professor: 'Dr. Alan Turing' },
-      { day: 'Monday', time: '11:00 AM - 12:30 PM', courseCode: 'CS-103', courseName: 'Advanced Web Development', classroom: 'Computer Lab 3', professor: 'Prof. Grace Hopper' },
-      { day: 'Tuesday', time: '09:00 AM - 10:30 AM', courseCode: 'CS-102', courseName: 'Database Management Systems', classroom: 'Lecture Hall 204', professor: 'Dr. Alan Turing' },
-      { day: 'Tuesday', time: '11:00 AM - 12:30 PM', courseCode: 'IT-101', courseName: 'Information Security', classroom: 'Lecture Hall 102', professor: 'Dr. Edgar Codd' },
-      { day: 'Wednesday', time: '09:00 AM - 10:30 AM', courseCode: 'EC-101', courseName: 'Digital Logic Circuits', classroom: 'ECE Lab A', professor: 'Prof. Claude Shannon' },
-      { day: 'Wednesday', time: '11:00 AM - 12:30 PM', courseCode: 'CS-101', courseName: 'Data Structures & Algorithms', classroom: 'Lecture Hall 101', professor: 'Dr. Alan Turing' },
-      { day: 'Thursday', time: '09:00 AM - 10:30 AM', courseCode: 'CS-103', courseName: 'Advanced Web Development', classroom: 'Computer Lab 3', professor: 'Prof. Grace Hopper' },
-      { day: 'Thursday', time: '11:00 AM - 12:30 PM', courseCode: 'CS-102', courseName: 'Database Management Systems', classroom: 'Lecture Hall 204', professor: 'Dr. Alan Turing' },
-      { day: 'Friday', time: '09:00 AM - 10:30 AM', courseCode: 'EC-101', courseName: 'Digital Logic Circuits', classroom: 'ECE Lab A', professor: 'Prof. Claude Shannon' },
-      { day: 'Friday', time: '11:00 AM - 12:30 PM', courseCode: 'IT-101', courseName: 'Information Security', classroom: 'Lecture Hall 102', professor: 'Dr. Edgar Codd' }
+      { id: 'tt1', day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', classroom: 'Lecture Hall 101', staffId: 'prof1' },
+      { id: 'tt2', day: 'Monday', time: '11:00 AM - 12:30 PM', courseId: 'cs103', classroom: 'Computer Lab 3', staffId: 'prof2' },
+      { id: 'tt3', day: 'Tuesday', time: '09:00 AM - 10:30 AM', courseId: 'cs102', classroom: 'Lecture Hall 204', staffId: 'prof1' },
+      { id: 'tt4', day: 'Tuesday', time: '11:00 AM - 12:30 PM', courseId: 'it101', classroom: 'Lecture Hall 102', staffId: 'prof3' },
+      { id: 'tt5', day: 'Wednesday', time: '09:00 AM - 10:30 AM', courseId: 'ec101', classroom: 'ECE Lab A', staffId: 'prof4' },
+      { id: 'tt6', day: 'Wednesday', time: '11:00 AM - 12:30 PM', courseId: 'cs101', classroom: 'Lecture Hall 101', staffId: 'prof1' },
+      { id: 'tt7', day: 'Thursday', time: '09:00 AM - 10:30 AM', courseId: 'cs103', classroom: 'Computer Lab 3', staffId: 'prof2' },
+      { id: 'tt8', day: 'Thursday', time: '11:00 AM - 12:30 PM', courseId: 'cs102', classroom: 'Lecture Hall 204', staffId: 'prof1' },
+      { id: 'tt9', day: 'Friday', time: '09:00 AM - 10:30 AM', courseId: 'ec101', classroom: 'ECE Lab A', staffId: 'prof4' },
+      { id: 'tt10', day: 'Friday', time: '11:00 AM - 12:30 PM', courseId: 'it101', classroom: 'Lecture Hall 102', staffId: 'prof3' }
     ],
     attendance: [],
     leaveRequests: [
@@ -218,6 +218,50 @@
         this.data = JSON.parse(JSON.stringify(DEFAULT_DB));
         this.save();
       }
+
+      this.migrateTimetableData();
+    }
+
+    migrateTimetableData() {
+      if (!Array.isArray(this.data.timetable)) {
+        this.data.timetable = [];
+        return;
+      }
+      let changed = false;
+      this.data.timetable.forEach((slot, idx) => {
+        if (!slot.id) {
+          slot.id = 'tt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+          changed = true;
+        }
+
+        // Migrate courseCode/courseName -> courseId
+        if (!slot.courseId && slot.courseCode) {
+          const course = (this.data.courses || []).find(c => 
+            c.code.toLowerCase() === slot.courseCode.toLowerCase() ||
+            (slot.courseName && c.name.toLowerCase() === slot.courseName.toLowerCase())
+          );
+          if (course) {
+            slot.courseId = course.id;
+            changed = true;
+          }
+        }
+
+        // Migrate professor -> staffId
+        if (!slot.staffId && slot.professor) {
+          const staff = (this.data.staff || []).find(st => 
+            st.name.toLowerCase() === slot.professor.toLowerCase() ||
+            (st.loginId && st.loginId.toLowerCase() === slot.professor.toLowerCase())
+          );
+          if (staff) {
+            slot.staffId = staff.id;
+            changed = true;
+          }
+        }
+      });
+
+      if (changed) {
+        this.save();
+      }
     }
 
     save() {
@@ -289,10 +333,43 @@
       const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       if (!record.day || !validDays.includes(record.day)) errors.push(`Invalid Day '${record.day}'`);
       if (!record.time || typeof record.time !== 'string') errors.push("Missing Time slot");
-      if (!record.courseCode || typeof record.courseCode !== 'string') errors.push("Missing Course Code");
-      if (!record.courseName || typeof record.courseName !== 'string') errors.push("Missing Course Name");
       if (!record.classroom || typeof record.classroom !== 'string') errors.push("Missing Classroom");
-      if (!record.professor || typeof record.professor !== 'string') errors.push("Missing Professor");
+
+      // Resolve Course
+      let course = null;
+      if (record.courseId) {
+        course = this.getCourses().find(c => c.id === record.courseId || c.code.toLowerCase() === record.courseId.toLowerCase());
+      }
+      if (!course && record.courseCode) {
+        course = this.getCourses().find(c => c.code.toLowerCase() === record.courseCode.toLowerCase() || c.name.toLowerCase() === record.courseCode.toLowerCase());
+      }
+      if (!course && record.courseName) {
+        course = this.getCourses().find(c => c.name.toLowerCase() === record.courseName.toLowerCase());
+      }
+      if (!course) {
+        errors.push(`Unresolved Course '${record.courseId || record.courseCode || record.courseName || ''}'`);
+      }
+
+      // Resolve Faculty
+      let staff = null;
+      if (record.staffId) {
+        staff = this.getStaff().find(st => st.id === record.staffId || st.loginId.toLowerCase() === record.staffId.toLowerCase());
+      }
+      if (!staff && (record.professor || record.faculty || record.loginId)) {
+        const q = (record.professor || record.faculty || record.loginId).trim().toLowerCase();
+        staff = this.getStaff().find(st => st.name.toLowerCase() === q || st.loginId.toLowerCase() === q || st.email.toLowerCase() === q);
+      }
+      if (!staff) {
+        errors.push(`Unresolved Faculty '${record.staffId || record.professor || record.faculty || ''}'`);
+      }
+
+      // Check allocation
+      if (course && staff) {
+        const isAllocated = Array.isArray(staff.courses) && staff.courses.includes(course.id);
+        if (!isAllocated) {
+          errors.push(`Faculty '${staff.name}' is not allocated to teach course '${course.code}' (${course.name})`);
+        }
+      }
 
       return errors;
     }
@@ -357,7 +434,20 @@
     getAdmin() { return this.data.admin; }
     getStaff() { return this.data.staff; }
     getStudents() { return this.data.students; }
-    getTimetable() { return this.data.timetable; }
+    getTimetable() {
+      return (this.data.timetable || []).map(slot => {
+        const course = (this.data.courses || []).find(c => c.id === slot.courseId);
+        const staff = (this.data.staff || []).find(st => st.id === slot.staffId);
+        return {
+          ...slot,
+          courseCode: course ? course.code : (slot.courseCode || 'N/A'),
+          courseName: course ? course.name : (slot.courseName || 'Unknown Course'),
+          professor: staff ? staff.name : (slot.professor || 'Unassigned Professor'),
+          staffName: staff ? staff.name : (slot.professor || 'Unassigned Professor'),
+          staffLoginId: staff ? staff.loginId : ''
+        };
+      });
+    }
     getAttendance() { return this.data.attendance; }
     getLeaveRequests() { return this.data.leaveRequests || []; }
     getSubstitutes() { return this.data.substitutes || []; }
@@ -772,26 +862,146 @@
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'COURSE_DELETE', `Deleted course ${c ? c.code : courseId}`);
     }
 
+    // --- DEPARTMENT MANAGEMENT ---
+    addOrUpdateDepartment(d, user) {
+      if (!d.name || !d.code) {
+        return { success: false, message: 'Department name and code are required.' };
+      }
+      
+      const cleanCode = d.code.trim().toUpperCase();
+      const cleanName = d.name.trim();
+
+      if (d.id) {
+        const idx = this.data.departments.findIndex(x => x.id === d.id);
+        if (idx !== -1) {
+          const dup = this.data.departments.find(x => x.id !== d.id && x.code.toUpperCase() === cleanCode);
+          if (dup) return { success: false, message: `Department code '${cleanCode}' is already used by another department.` };
+          
+          this.data.departments[idx] = { ...this.data.departments[idx], name: cleanName, code: cleanCode };
+        }
+      } else {
+        const cleanId = d.code.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        const existingId = this.data.departments.find(x => x.id === cleanId || x.code.toUpperCase() === cleanCode);
+        if (existingId) return { success: false, message: `Department code '${cleanCode}' already exists.` };
+
+        const newDept = {
+          id: cleanId || ('dept_' + Date.now()),
+          name: cleanName,
+          code: cleanCode
+        };
+        this.data.departments.push(newDept);
+        d.id = newDept.id;
+      }
+
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'DEPT_UPDATE', `Saved department ${cleanCode} (${cleanName})`);
+      return { success: true, department: d };
+    }
+
+    deleteDepartment(deptId, user) {
+      const dept = this.data.departments.find(x => x.id === deptId);
+      if (!dept) return { success: false, message: 'Department not found.' };
+
+      const studentCount = this.getStudents().filter(s => s.deptId === deptId).length;
+      const staffCount = this.getStaff().filter(st => st.deptId === deptId).length;
+      const courseCount = this.getCourses().filter(c => c.deptId === deptId).length;
+
+      if (studentCount > 0 || staffCount > 0 || courseCount > 0) {
+        return {
+          success: false,
+          message: `Cannot delete department '${dept.code}'. It is linked to ${studentCount} student(s), ${staffCount} faculty, and ${courseCount} course(s). Reassign them first.`
+        };
+      }
+
+      this.data.departments = this.data.departments.filter(x => x.id !== deptId);
+      this.save();
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'DEPT_DELETE', `Deleted department ${dept.code}`);
+      return { success: true };
+    }
+
     // --- TIMETABLE MANAGEMENT ---
     addOrUpdateTimetableSlot(slot, user) {
+      if (!slot.day || !slot.time || !slot.classroom || !slot.courseId || !slot.staffId) {
+        return { success: false, message: 'Day, Time, Classroom, Course, and Faculty are all required.' };
+      }
+
+      const course = this.getCourses().find(c => c.id === slot.courseId);
+      if (!course) return { success: false, message: 'Invalid course selected.' };
+
+      const staff = this.getStaff().find(st => st.id === slot.staffId);
+      if (!staff) return { success: false, message: 'Invalid faculty selected.' };
+
+      // Allocation check: verify faculty is assigned to course
+      if (!Array.isArray(staff.courses) || !staff.courses.includes(slot.courseId)) {
+        return { success: false, message: `Faculty '${staff.name}' is not allocated to teach '${course.code} - ${course.name}'.` };
+      }
+
+      // Classroom conflict check: same day, time, classroom
+      const classroomConflict = (this.data.timetable || []).find(t => 
+        t.id !== slot.id &&
+        t.day === slot.day &&
+        t.time.trim().toLowerCase() === slot.time.trim().toLowerCase() &&
+        t.classroom.trim().toLowerCase() === slot.classroom.trim().toLowerCase()
+      );
+      if (classroomConflict) {
+        const confCourse = this.getCourses().find(c => c.id === classroomConflict.courseId);
+        return { 
+          success: false, 
+          message: `Classroom conflict: '${slot.classroom}' is already booked on ${slot.day} (${slot.time}) for ${confCourse ? confCourse.code : 'another lecture'}.` 
+        };
+      }
+
+      // Faculty time conflict check: same day, time, staffId
+      const facultyConflict = (this.data.timetable || []).find(t => 
+        t.id !== slot.id &&
+        t.day === slot.day &&
+        t.time.trim().toLowerCase() === slot.time.trim().toLowerCase() &&
+        t.staffId === slot.staffId
+      );
+      if (facultyConflict) {
+        const confCourse = this.getCourses().find(c => c.id === facultyConflict.courseId);
+        return { 
+          success: false, 
+          message: `Faculty conflict: '${staff.name}' is already scheduled to teach on ${slot.day} (${slot.time}) for ${confCourse ? confCourse.code : 'another lecture'}.` 
+        };
+      }
+
       if (slot.id) {
         const idx = this.data.timetable.findIndex(x => x.id === slot.id);
         if (idx !== -1) {
-          this.data.timetable[idx] = { ...this.data.timetable[idx], ...slot };
+          this.data.timetable[idx] = { 
+            id: slot.id,
+            day: slot.day,
+            time: slot.time,
+            classroom: slot.classroom,
+            courseId: slot.courseId,
+            staffId: slot.staffId
+          };
         }
       } else {
-        slot.id = 'slot_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-        this.data.timetable.push(slot);
+        slot.id = 'tt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        this.data.timetable.push({
+          id: slot.id,
+          day: slot.day,
+          time: slot.time,
+          classroom: slot.classroom,
+          courseId: slot.courseId,
+          staffId: slot.staffId
+        });
       }
+
       this.save();
-      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'TIMETABLE_UPDATE', `Saved timetable slot ${slot.courseCode} on ${slot.day} (${slot.time})`);
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'TIMETABLE_UPDATE', `Saved timetable slot for ${course.code} on ${slot.day} (${slot.time}) assigned to ${staff.name}`);
+      return { success: true, slot: slot };
     }
 
     deleteTimetableSlot(slotId, user) {
-      const slot = this.data.timetable.find(x => x.id === slotId || (x.day === slotId.day && x.time === slotId.time && x.courseCode === slotId.courseCode));
-      this.data.timetable = this.data.timetable.filter(x => x !== slot && x.id !== slotId);
+      const slot = this.data.timetable.find(x => x.id === slotId || (typeof slotId === 'object' && x.id === slotId.id));
+      const targetId = slot ? slot.id : (typeof slotId === 'string' ? slotId : slotId.id);
+      this.data.timetable = (this.data.timetable || []).filter(x => x.id !== targetId);
       this.save();
-      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'TIMETABLE_DELETE', `Deleted timetable slot`);
+      this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'TIMETABLE_DELETE', `Deleted timetable slot ${targetId}`);
+      return { success: true };
     }
 
     // --- STAFF ACTIONS ---
@@ -895,7 +1105,7 @@
         const cPct = cTotal > 0 ? Math.round((cAdjusted / cTotal) * 100) : 100;
 
         // Calculate dynamic remaining lectures based on weekly timetable
-        const courseTimetable = (this.data.timetable || []).filter(t => t.courseCode === (course ? course.code : ''));
+        const courseTimetable = (this.data.timetable || []).filter(t => t.courseId === courseId);
         let remainingClasses = 0;
         courseTimetable.forEach(slot => {
           remainingClasses += getRemainingOccurrences(slot.day, semesterEndDate);

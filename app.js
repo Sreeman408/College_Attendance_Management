@@ -366,7 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-staff-modal')?.addEventListener('click', () => staffModal.classList.remove('active'));
     document.getElementById('cancel-staff-modal')?.addEventListener('click', () => staffModal.classList.remove('active'));
 
-    // Course & Timetable Modals
+    // Department, Course & Timetable Modals
+    const deptModal = document.getElementById('dept-modal');
+    document.getElementById('dept-form')?.addEventListener('submit', handleDeptModalSubmit);
+    document.getElementById('close-dept-modal')?.addEventListener('click', () => deptModal.classList.remove('active'));
+    document.getElementById('cancel-dept-modal')?.addEventListener('click', () => deptModal.classList.remove('active'));
+
     const courseModal = document.getElementById('course-modal');
     document.getElementById('course-form')?.addEventListener('submit', handleCourseModalSubmit);
     document.getElementById('close-course-modal')?.addEventListener('click', () => courseModal.classList.remove('active'));
@@ -737,6 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
       'admin-uploads': { title: 'Unified Enterprise Bulk Import', subtitle: 'Multi-format transactional data synchronization' },
       'admin-edit-student': { title: 'Manage Students Registry', subtitle: 'Register, edit details, or remove student profiles' },
       'admin-edit-staff': { title: 'Manage Faculty Registry', subtitle: 'Register, edit details, or remove staff profiles' },
+      'admin-edit-dept': { title: 'Manage Departments', subtitle: 'Add, modify, or remove academic department units' },
       'admin-edit-course': { title: 'Manage Academic Subjects', subtitle: 'Add, edit, or remove subjects & allocate faculty' },
       'admin-edit-timetable': { title: 'Manage Master Timetable', subtitle: 'Allocate lecture slots, classrooms & faculty professors' },
       'admin-audit': { title: 'Security Audit Trail', subtitle: 'System-wide activity and security log' },
@@ -765,6 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'admin-audit': renderAdminAudit(); break;
       case 'admin-edit-student': renderAdminStudentEditor(); break;
       case 'admin-edit-staff': renderAdminStaffEditor(); break;
+      case 'admin-edit-dept': renderAdminDeptEditor(); break;
       case 'admin-edit-course': renderAdminCourseEditor(); break;
       case 'admin-edit-timetable': renderAdminTimetableEditor(); break;
       case 'staff-dashboard': renderStaffDashboard(); break;
@@ -1089,6 +1096,104 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAdminStaffEditor();
   }
 
+  function populateDepartmentDropdown(selectId, selectedDeptId = null) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    const depts = window.CollegeDB.getDepartments();
+    sel.innerHTML = '';
+    depts.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id;
+      opt.innerText = `${d.code} - ${d.name}`;
+      sel.appendChild(opt);
+    });
+    if (selectedDeptId) {
+      sel.value = selectedDeptId;
+    }
+  }
+
+  // --- ADMIN DEPARTMENT EDITOR ---
+  function renderAdminDeptEditor() {
+    const depts = window.CollegeDB.getDepartments();
+    const tbody = document.getElementById('admin-depts-editor-table')?.querySelector('tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    depts.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="badge badge-info">${d.code}</span></td>
+        <td><strong>${d.name}</strong></td>
+        <td><code>${d.id}</code></td>
+        <td>
+          <div style="display:flex; gap:6px;">
+            <button class="btn btn-secondary btn-sm edit-btn"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-danger btn-sm delete-btn"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </td>
+      `;
+
+      tr.querySelector('.edit-btn').onclick = () => openDeptModal(d);
+      tr.querySelector('.delete-btn').onclick = () => handleDeleteDepartment(d);
+
+      tbody.appendChild(tr);
+    });
+
+    const addBtn = document.getElementById('open-add-dept-btn');
+    if (addBtn) addBtn.onclick = () => openDeptModal();
+  }
+
+  function openDeptModal(dept = null) {
+    const modal = document.getElementById('dept-modal');
+    if (!modal) return;
+
+    if (dept) {
+      document.getElementById('dept-modal-title').innerText = 'Modify Academic Department';
+      document.getElementById('form-dept-id').value = dept.id;
+      document.getElementById('form-dept-name').value = dept.name;
+      document.getElementById('form-dept-code').value = dept.code;
+    } else {
+      document.getElementById('dept-modal-title').innerText = 'Add Academic Department';
+      document.getElementById('dept-form').reset();
+      document.getElementById('form-dept-id').value = '';
+    }
+
+    modal.classList.add('active');
+  }
+
+  function handleDeptModalSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('form-dept-id').value;
+    const name = document.getElementById('form-dept-name').value.trim();
+    const code = document.getElementById('form-dept-code').value.trim();
+
+    const res = window.CollegeDB.addOrUpdateDepartment({ id, name, code }, currentUser);
+    if (!res.success) {
+      showToast(res.message, 'warning');
+      return;
+    }
+
+    showToast(`Department '${code}' saved successfully.`, 'success');
+    document.getElementById('dept-modal').classList.remove('active');
+    renderAdminDeptEditor();
+  }
+
+  function handleDeleteDepartment(dept) {
+    showConfirmDialog(
+      'Delete Academic Department',
+      `Are you sure you want to delete the department '${dept.code} - ${dept.name}'?`,
+      () => {
+        const res = window.CollegeDB.deleteDepartment(dept.id, currentUser);
+        if (!res.success) {
+          showToast(res.message, 'warning');
+          return;
+        }
+        showToast(`Department '${dept.code}' deleted.`, 'info');
+        renderAdminDeptEditor();
+      }
+    );
+  }
+
   // --- ADMIN COURSE / SUBJECT EDITOR ---
   function renderAdminCourseEditor() {
     const courses = window.CollegeDB.getCourses();
@@ -1207,41 +1312,65 @@ document.addEventListener('DOMContentLoaded', () => {
     renderAdminSubstituteTable();
   }
 
+  function updateFacultyDropdownForSelectedCourse(courseId, targetStaffId = null) {
+    const profSel = document.getElementById('form-tt-prof');
+    if (!profSel) return;
+    profSel.innerHTML = '';
+
+    const staff = window.CollegeDB.getStaff();
+    const allocated = staff.filter(st => Array.isArray(st.courses) && st.courses.includes(courseId));
+
+    if (allocated.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.innerText = '-- No Faculty Allocated to this Subject --';
+      profSel.appendChild(opt);
+    } else {
+      allocated.forEach(st => {
+        const opt = document.createElement('option');
+        opt.value = st.id;
+        opt.innerText = `${st.name} (${st.deptId.toUpperCase()})`;
+        profSel.appendChild(opt);
+      });
+      if (targetStaffId) {
+        profSel.value = targetStaffId;
+      }
+    }
+  }
+
   function openTimetableModal(slot = null) {
     const modal = document.getElementById('timetable-modal');
     const courses = window.CollegeDB.getCourses();
-    const staff = window.CollegeDB.getStaff();
 
     const courseSel = document.getElementById('form-tt-course');
     courseSel.innerHTML = '';
     courses.forEach(c => {
       const opt = document.createElement('option');
-      opt.value = c.code;
+      opt.value = c.id;
       opt.innerText = `${c.code} - ${c.name}`;
       courseSel.appendChild(opt);
     });
 
-    const profSel = document.getElementById('form-tt-prof');
-    profSel.innerHTML = '';
-    staff.forEach(st => {
-      const opt = document.createElement('option');
-      opt.value = st.name;
-      opt.innerText = `${st.name} (${st.deptId.toUpperCase()})`;
-      profSel.appendChild(opt);
-    });
+    courseSel.onchange = (e) => {
+      updateFacultyDropdownForSelectedCourse(e.target.value);
+    };
 
     if (slot) {
       document.getElementById('timetable-modal-title').innerText = 'Modify Timetable Slot';
       document.getElementById('form-timetable-id').value = slot.id || '';
       document.getElementById('form-tt-day').value = slot.day;
       document.getElementById('form-tt-time').value = slot.time;
-      document.getElementById('form-tt-course').value = slot.courseCode;
+      document.getElementById('form-tt-course').value = slot.courseId;
       document.getElementById('form-tt-room').value = slot.classroom;
-      document.getElementById('form-tt-prof').value = slot.professor;
+      updateFacultyDropdownForSelectedCourse(slot.courseId, slot.staffId);
     } else {
       document.getElementById('timetable-modal-title').innerText = 'Allocate Timetable Lecture Slot';
       document.getElementById('timetable-form').reset();
       document.getElementById('form-timetable-id').value = '';
+      if (courses.length > 0) {
+        courseSel.value = courses[0].id;
+        updateFacultyDropdownForSelectedCourse(courses[0].id);
+      }
     }
 
     modal.classList.add('active');
@@ -1252,15 +1381,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = document.getElementById('form-timetable-id').value;
     const day = document.getElementById('form-tt-day').value;
     const time = document.getElementById('form-tt-time').value.trim();
-    const courseCode = document.getElementById('form-tt-course').value;
+    const courseId = document.getElementById('form-tt-course').value;
     const classroom = document.getElementById('form-tt-room').value.trim();
-    const professor = document.getElementById('form-tt-prof').value;
+    const staffId = document.getElementById('form-tt-prof').value;
 
-    const courses = window.CollegeDB.getCourses();
-    const cObj = courses.find(c => c.code === courseCode);
-    const courseName = cObj ? cObj.name : courseCode;
+    if (!courseId) {
+      showToast('Please select a valid course.', 'warning');
+      return;
+    }
+    if (!staffId) {
+      showToast('No allocated faculty selected for this course.', 'warning');
+      return;
+    }
 
-    window.CollegeDB.addOrUpdateTimetableSlot({ id, day, time, courseCode, courseName, classroom, professor }, currentUser);
+    const res = window.CollegeDB.addOrUpdateTimetableSlot({ id, day, time, courseId, classroom, staffId }, currentUser);
+    if (!res.success) {
+      showToast(res.message, 'warning');
+      return;
+    }
+
     showToast('Lecture slot saved successfully.', 'success');
     document.getElementById('timetable-modal').classList.remove('active');
     renderAdminTimetableEditor();
@@ -1528,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (targetType === 'staff') {
       data = [{ name: 'Dr. John Von Neumann', email: 'j.neumann@annamalai.edu', deptId: 'cse', loginId: 'staff_john', password: 'staffpassword' }];
     } else if (targetType === 'timetable') {
-      data = [{ day: 'Monday', time: '09:00 AM - 10:30 AM', courseCode: 'CS-101', courseName: 'Data Structures', classroom: 'Lab 1', professor: 'Dr. Alan Turing' }];
+      data = [{ day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', courseCode: 'CS-101', classroom: 'Lab 1', staffId: 'prof1', professor: 'Dr. Alan Turing' }];
     }
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1956,13 +2095,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderStudentTimetable() {
     const timetable = window.CollegeDB.getTimetable();
-    const courses = window.CollegeDB.getCourses();
-    const myCourseCodes = (currentUser.courses || []).map(cId => {
-      const cObj = courses.find(c => c.id === cId);
-      return cObj ? cObj.code : '';
-    });
+    const myCourseIds = currentUser.courses || [];
 
-    const mySlots = timetable.filter(t => myCourseCodes.includes(t.courseCode));
+    const mySlots = timetable.filter(t => myCourseIds.includes(t.courseId));
     const tbody = document.getElementById('student-timetable-table').querySelector('tbody');
     tbody.innerHTML = '';
 
@@ -2012,12 +2147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function exportCalendarICS() {
     let timetable = window.CollegeDB.getTimetable();
     if (currentUser && currentUser.courses) {
-      const courses = window.CollegeDB.getCourses();
-      const myCodes = currentUser.courses.map(cId => {
-        const cObj = courses.find(c => c.id === cId);
-        return cObj ? cObj.code : '';
-      });
-      timetable = timetable.filter(t => myCodes.includes(t.courseCode));
+      timetable = timetable.filter(t => currentUser.courses.includes(t.courseId));
     }
 
     let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Annamalai University//CMS Timetable//EN\n";
