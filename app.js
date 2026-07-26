@@ -1381,7 +1381,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkboxes = document.querySelectorAll('#form-parent-students-list input[name="parent-student-cb"]:checked');
     const studentIds = Array.from(checkboxes).map(cb => cb.value);
 
-    await window.CollegeDB.addOrUpdateParent({ id, name, email, loginId, password, studentIds }, currentUser);
+    const res = await window.CollegeDB.addOrUpdateParent({ id, name, email, loginId, password, studentIds }, currentUser);
+    if (res && res.success === false) {
+      showToast(res.message, 'warning');
+      return;
+    }
+
     showToast('Parent account saved successfully.', 'success');
     document.getElementById('parent-modal').classList.remove('active');
     renderAdminParentEditor();

@@ -1026,6 +1026,12 @@
     // --- PARENT MANAGEMENT ---
     async addOrUpdateParent(p, user) {
       const isHash = (str) => /^[a-f0-9]{64}$/i.test(str);
+      
+      const existingLogin = (this.data.parents || []).find(x => x.loginId.toLowerCase() === p.loginId.toLowerCase() && x.id !== p.id);
+      if (existingLogin) {
+        return { success: false, message: `Login ID '${p.loginId}' is already in use by another parent account.` };
+      }
+
       if (p.password && !isHash(p.password)) {
         p.password = await this.hashPassword(p.password);
       }
@@ -1051,7 +1057,7 @@
       }
       this.save();
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'PARENT_UPDATE', `Saved parent account ${p.name} (${p.loginId})`);
-      return p;
+      return { success: true, parent: p };
     }
 
     deleteParent(parentId, user) {
