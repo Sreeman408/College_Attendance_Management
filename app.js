@@ -582,13 +582,18 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (sess.role === 'parent') {
         const parent = window.CollegeDB.data.parents ? window.CollegeDB.data.parents.find(p => p.id === sess.id) : null;
         if (parent) {
-          const wardStudent = window.CollegeDB.getStudents().find(s => s.id === parent.studentId);
+          const studentIds = Array.isArray(parent.studentIds) ? parent.studentIds : (parent.studentId ? [parent.studentId] : []);
+          const students = window.CollegeDB.getStudents().filter(s => studentIds.includes(s.id));
+          const activeStudent = students.find(s => s.id === sess.wardId) || students[0] || null;
           userObj = {
             id: parent.id,
             name: parent.name,
-            email: `guardian.${wardStudent ? wardStudent.email : 'parent@annamalai.edu'}`,
-            wardStudentId: parent.studentId,
-            ward: wardStudent
+            email: parent.email || 'parent@annamalai.edu',
+            loginId: parent.loginId,
+            studentIds: studentIds,
+            wardStudentId: activeStudent ? activeStudent.id : null,
+            ward: activeStudent,
+            linkedStudents: students
           };
         } else {
           // Fallback legacy session restore if needed
@@ -600,7 +605,9 @@ document.addEventListener('DOMContentLoaded', () => {
               name: `Parent of ${wardStudent.name}`,
               email: `guardian.${wardStudent.email}`,
               wardStudentId: wardStudent.id,
-              ward: wardStudent
+              ward: wardStudent,
+              studentIds: [wardStudent.id],
+              linkedStudents: [wardStudent]
             };
           }
         }
@@ -1399,11 +1406,15 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.innerHTML = '';
 
     timetable.forEach(t => {
+      const isPractical = t.courseType === 'Practical';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${t.day}</strong></td>
         <td>${t.time}</td>
-        <td><code>${t.courseCode}</code></td>
+        <td>
+          <code>${t.courseCode}</code>
+          <span class="badge ${isPractical ? 'badge-warning' : 'badge-info'}" style="font-size:0.72rem; padding:2px 6px; margin-left:4px;">${t.courseType || 'Lecture'}</span>
+        </td>
         <td>${t.courseName}</td>
         <td><span class="badge badge-info">${t.classroom}</span></td>
         <td><strong>${t.professor}</strong></td>
@@ -1895,13 +1906,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const course = courses.find(c => c.id === cId);
       if (!course) return;
 
+      const isPractical = course.type === 'Practical';
       const card = document.createElement('div');
       card.className = 'card';
       card.style.margin = '0';
       card.innerHTML = `
         <div class="card-header">
           <h3 class="card-title">${course.code}</h3>
-          <span class="badge badge-info">${course.deptId.toUpperCase()}</span>
+          <div style="display:flex; gap:6px;">
+            <span class="badge badge-info">${course.deptId.toUpperCase()}</span>
+            <span class="badge ${isPractical ? 'badge-warning' : 'badge-info'}">${course.type || 'Lecture'}</span>
+          </div>
         </div>
         <p style="font-weight:600; margin-bottom:12px; font-size:0.95rem;">${course.name}</p>
         <button class="btn btn-primary btn-sm mark-btn" data-course="${course.id}">
@@ -1938,7 +1953,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (c) {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.innerText = `${c.code} - ${c.name}`;
+        opt.innerText = `${c.code} - ${c.name} (${c.type || 'Lecture'})`;
         select.appendChild(opt);
       }
     });
@@ -2262,11 +2277,15 @@ document.addEventListener('DOMContentLoaded', () => {
     tbody.innerHTML = '';
 
     mySlots.forEach(slot => {
+      const isPractical = slot.courseType === 'Practical';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td><strong>${slot.day}</strong></td>
         <td>${slot.time}</td>
-        <td><code>${slot.courseCode}</code></td>
+        <td>
+          <code>${slot.courseCode}</code>
+          <span class="badge ${isPractical ? 'badge-warning' : 'badge-info'}" style="font-size:0.72rem; padding:2px 6px; margin-left:4px;">${slot.courseType || 'Lecture'}</span>
+        </td>
         <td>${slot.courseName}</td>
         <td><span class="badge badge-info">${slot.classroom}</span></td>
         <td>${slot.professor}</td>
@@ -2425,11 +2444,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (ttTbody) {
       ttTbody.innerHTML = '';
       childSlots.forEach(slot => {
+        const isPractical = slot.courseType === 'Practical';
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td><strong>${slot.day}</strong></td>
           <td>${slot.time}</td>
-          <td><code>${slot.courseCode}</code></td>
+          <td>
+            <code>${slot.courseCode}</code>
+            <span class="badge ${isPractical ? 'badge-warning' : 'badge-info'}" style="font-size:0.72rem; padding:2px 6px; margin-left:4px;">${slot.courseType || 'Lecture'}</span>
+          </td>
           <td>${slot.courseName}</td>
           <td><span class="badge badge-info">${slot.classroom}</span></td>
           <td>${slot.professor}</td>

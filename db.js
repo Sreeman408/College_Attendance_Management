@@ -570,6 +570,7 @@
           ...slot,
           courseCode: course ? course.code : (slot.courseCode || 'N/A'),
           courseName: course ? course.name : (slot.courseName || 'Unknown Course'),
+          courseType: course ? course.type : (slot.type || 'Lecture'),
           professor: staff ? staff.name : (slot.professor || 'Unassigned Professor'),
           staffName: staff ? staff.name : (slot.professor || 'Unassigned Professor'),
           staffLoginId: staff ? staff.loginId : ''
