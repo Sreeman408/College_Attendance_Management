@@ -398,6 +398,15 @@
       return errors;
     }
 
+    validateParentSchema(record) {
+      const errors = [];
+      if (!record.name || typeof record.name !== 'string' || !record.name.trim()) errors.push("Missing Parent Name");
+      if (!record.loginId || typeof record.loginId !== 'string' || !record.loginId.trim()) errors.push("Missing Login ID");
+      if (!record.email || typeof record.email !== 'string' || !record.email.includes('@')) errors.push("Invalid Email Address");
+
+      return errors;
+    }
+
     validateBatch(type, records) {
       const results = { 
         valid: [], 
@@ -528,6 +537,12 @@
           const isDuplicate = this.getStaff().some(s => s.loginId === rec.loginId);
           if (isDuplicate) {
             results.duplicates.push({ row: rowNum, record: rec, reason: `Duplicate Staff Login '${rec.loginId}'` });
+          }
+        } else if (type === 'parents') {
+          schemaErrors = this.validateParentSchema(rec);
+          const isDuplicate = this.getParents().some(p => p.loginId.toLowerCase() === (rec.loginId || '').trim().toLowerCase());
+          if (isDuplicate) {
+            results.duplicates.push({ row: rowNum, record: rec, reason: `Duplicate Parent Login '${rec.loginId}'` });
           }
         }
 
@@ -915,7 +930,6 @@
               if (resolutionMode === 'overwrite' || resolutionMode === 'merge') {
                 this.data.students[exists] = { ...this.data.students[exists], ...s };
               }
-              // If 'skip', do nothing
             } else {
               s.id = s.id || 'std_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
               s.courses = s.courses || ['cs101', 'cs103'];
@@ -928,6 +942,80 @@
         }
         return false;
       } catch (e) {
+        this.restoreSnapshot(snapshot);
+        return false;
+      }
+    }
+
+    async uploadParents(parentList, resolutionMode = 'merge', user) {
+      const snapshot = this.createSnapshot();
+      try {
+        if (!Array.isArray(parentList) || parentList.length === 0) return false;
+
+        const defaultPassHash = await this.hashPassword('parentpassword');
+        const defaultAnsHash = await this.hashPassword('smith');
+
+        for (let p of parentList) {
+          const rawLogin = (p.loginId || p.login || p.username || '').trim();
+          if (!rawLogin) continue;
+
+          const existsIdx = this.data.parents.findIndex(x => x.loginId.toLowerCase() === rawLogin.toLowerCase());
+
+          // Resolve linked student rolls / IDs
+          let studentIds = [];
+          if (Array.isArray(p.studentIds)) {
+            studentIds = p.studentIds;
+          } else {
+            const rawRolls = (p.studentRolls || p.studentRoll || p.studentId || p.roll || '').toString().split(',');
+            rawRolls.forEach(r => {
+              const rClean = r.trim().toLowerCase();
+              if (!rClean) return;
+              const matchedStudent = this.getStudents().find(s => 
+                s.roll.toLowerCase() === rClean || 
+                s.id.toLowerCase() === rClean || 
+                s.loginId.toLowerCase() === rClean
+              );
+              if (matchedStudent && !studentIds.includes(matchedStudent.id)) {
+                studentIds.push(matchedStudent.id);
+              }
+            });
+          }
+
+          const name = (p.name || p.fullName || `Parent of ${rawLogin}`).trim();
+          const email = (p.email || `${rawLogin}@annamalai.edu`).trim();
+          const pass = p.password ? (await this.hashPassword(p.password)) : defaultPassHash;
+
+          if (existsIdx !== -1) {
+            if (resolutionMode === 'overwrite' || resolutionMode === 'merge') {
+              const existing = this.data.parents[existsIdx];
+              const mergedStudentIds = Array.from(new Set([...(existing.studentIds || []), ...studentIds]));
+              this.data.parents[existsIdx] = {
+                ...existing,
+                name: name || existing.name,
+                email: email || existing.email,
+                studentIds: mergedStudentIds.length > 0 ? mergedStudentIds : existing.studentIds
+              };
+            }
+          } else {
+            const newParent = {
+              id: 'parent_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              name: name,
+              email: email,
+              loginId: rawLogin,
+              password: pass,
+              question: "What is your mother's maiden name?",
+              answer: defaultAnsHash,
+              studentIds: studentIds
+            };
+            this.data.parents.push(newParent);
+          }
+        }
+
+        this.save();
+        this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'BULK_PARENTS', `Imported ${parentList.length} parent accounts (Mode: ${resolutionMode})`);
+        return true;
+      } catch (e) {
+        console.error("Bulk upload parents error:", e);
         this.restoreSnapshot(snapshot);
         return false;
       }

@@ -1797,6 +1797,8 @@ document.addEventListener('DOMContentLoaded', () => {
       result = window.CollegeDB.uploadStudents(validRecords, mode, currentUser);
     } else if (type === 'staff') {
       result = window.CollegeDB.uploadStaff(validRecords, currentUser);
+    } else if (type === 'parents') {
+      result = await window.CollegeDB.uploadParents(validRecords, mode, currentUser);
     } else if (type === 'timetable') {
       result = await window.CollegeDB.uploadTimetableIntelligent(validRecords, currentUser);
     }
@@ -1822,6 +1824,8 @@ document.addEventListener('DOMContentLoaded', () => {
       data = [{ name: 'Jane Doe', roll: 'CSE-2026-99', email: 'jane@annamalai.edu', deptId: 'cse', loginId: 'student_jane', password: 'studentpassword' }];
     } else if (targetType === 'staff') {
       data = [{ name: 'Dr. John Von Neumann', email: 'j.neumann@annamalai.edu', deptId: 'cse', loginId: 'staff_john', password: 'staffpassword' }];
+    } else if (targetType === 'parents') {
+      data = [{ name: 'Robert Smith', email: 'r.smith@gmail.com', loginId: 'parent_alice', password: 'parentpassword', studentRolls: 'CSE-2026-01' }];
     } else if (targetType === 'timetable') {
       data = [{ day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', courseCode: 'CS-101', courseName: 'Data Structures', type: 'Lecture', classroom: 'Lecture Hall 101', staffId: 'prof1', professor: 'Dr. Alan Turing' }];
     }
