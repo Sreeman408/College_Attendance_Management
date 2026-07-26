@@ -105,6 +105,98 @@
   class CollegeCMSDB {
     constructor() {
       this.load();
+      this.migrateToHashedPasswords().catch(console.error);
+    }
+
+    async hashPassword(password) {
+      if (!password) return '';
+      const msgBuffer = new TextEncoder().encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async migrateToHashedPasswords() {
+      let migrated = false;
+      const isHash = (str) => /^[a-f0-9]{64}$/i.test(str);
+
+      // Admin
+      if (this.data.admin && !isHash(this.data.admin.password)) {
+        this.data.admin.password = await this.hashPassword(this.data.admin.password);
+        migrated = true;
+      }
+      if (this.data.admin && (!this.data.admin.question || !this.data.admin.answer)) {
+        this.data.admin.question = "What is your mother's maiden name?";
+        this.data.admin.answer = await this.hashPassword("smith");
+        migrated = true;
+      }
+
+      // Staff
+      if (this.data.staff) {
+        for (let st of this.data.staff) {
+          if (!isHash(st.password)) {
+            st.password = await this.hashPassword(st.password);
+            migrated = true;
+          }
+          if (!st.question) {
+            st.question = "What is your mother's maiden name?";
+            st.answer = await this.hashPassword("smith");
+            migrated = true;
+          }
+        }
+      }
+
+      // Students
+      if (this.data.students) {
+        for (let s of this.data.students) {
+          if (!isHash(s.password)) {
+            s.password = await this.hashPassword(s.password);
+            migrated = true;
+          }
+          if (!s.question) {
+            s.question = "What is your mother's maiden name?";
+            s.answer = await this.hashPassword("smith");
+            migrated = true;
+          }
+        }
+      }
+
+      // Parents
+      if (!this.data.parents) {
+        this.data.parents = [];
+        if (this.data.students) {
+          for (let s of this.data.students) {
+            const parentPass = await this.hashPassword('parentpassword');
+            const parentAns = await this.hashPassword('smith');
+            this.data.parents.push({
+              id: 'parent_' + s.id,
+              name: `Parent of ${s.name}`,
+              studentId: s.id,
+              loginId: 'parent_' + s.loginId.replace('student_', ''),
+              password: parentPass,
+              question: "What is your mother's maiden name?",
+              answer: parentAns
+            });
+          }
+        }
+        migrated = true;
+      } else {
+        for (let p of this.data.parents) {
+          if (!isHash(p.password)) {
+            p.password = await this.hashPassword(p.password);
+            migrated = true;
+          }
+          if (!p.question) {
+            p.question = "What is your mother's maiden name?";
+            p.answer = await this.hashPassword("smith");
+            migrated = true;
+          }
+        }
+      }
+
+      if (migrated) {
+        this.save();
+      }
     }
 
     load() {
@@ -273,45 +365,45 @@
     getSettings() { return this.data.settings; }
 
     // --- AUTHENTICATION ---
-    authenticate(loginId, password, category) {
+    async authenticate(loginId, password, category) {
+      const hashedPassword = await this.hashPassword(password);
+      
       if (category === 'admin') {
         const ad = this.getAdmin();
-        if (ad.loginId === loginId && ad.password === password) {
+        if (ad.loginId === loginId && ad.password === hashedPassword) {
           return { role: 'admin', user: ad };
         }
       } else if (category === 'staff') {
-        const prof = this.getStaff().find(s => s.loginId === loginId && s.password === password);
+        const prof = this.getStaff().find(s => s.loginId === loginId && s.password === hashedPassword);
         if (prof) {
           return { role: 'staff', user: prof };
         }
       } else if (category === 'student') {
-        const student = this.getStudents().find(s => s.loginId === loginId && s.password === password);
+        const student = this.getStudents().find(s => s.loginId === loginId && s.password === hashedPassword);
         if (student) {
           return { role: 'student', user: student };
         }
       } else if (category === 'parent') {
-        return this.authenticateParent(loginId, password);
+        return this.authenticateParent(loginId, hashedPassword);
       }
       return null;
     }
 
-    authenticateParent(loginId, password) {
-      // Allow parent login via parent_<roll> or parent_<loginId> or parent_alice
-      const cleanId = loginId.replace(/^parent_/i, '').trim().toLowerCase();
-      const student = this.getStudents().find(s => 
-        s.roll.toLowerCase() === cleanId || 
-        s.loginId.toLowerCase() === cleanId || 
-        s.name.toLowerCase().includes(cleanId)
+    authenticateParent(loginId, hashedPassword) {
+      const parent = this.data.parents.find(p => 
+        p.loginId.toLowerCase() === loginId.toLowerCase() && 
+        p.password === hashedPassword
       );
 
-      if (student && (student.password === password || password === 'parentpassword')) {
+      if (parent) {
+        const student = this.getStudents().find(s => s.id === parent.studentId);
         return {
           role: 'parent',
           user: {
-            id: 'parent_' + student.id,
-            name: `Parent of ${student.name}`,
-            email: `guardian.${student.email}`,
-            wardStudentId: student.id,
+            id: parent.id,
+            name: parent.name,
+            email: `guardian.${student ? student.email : 'parent@annamalai.edu'}`,
+            wardStudentId: parent.studentId,
             ward: student
           }
         };
@@ -319,28 +411,71 @@
       return null;
     }
 
-    resetPassword(category, loginId, newPassword) {
+    getSecurityQuestion(category, loginId) {
+      const id = loginId.trim().toLowerCase();
+      let user = null;
       if (category === 'student') {
-        const s = this.data.students.find(x => x.loginId === loginId || x.email === loginId);
+        user = this.data.students.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+      } else if (category === 'staff') {
+        user = this.data.staff.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+      } else if (category === 'parent') {
+        user = this.data.parents.find(x => x.loginId.toLowerCase() === id);
+      } else if (category === 'admin') {
+        user = this.data.admin.loginId.toLowerCase() === id ? this.data.admin : null;
+      }
+      return user ? user.question || "What is your mother's maiden name?" : null;
+    }
+
+    async verifySecurityAnswer(category, loginId, answer) {
+      const id = loginId.trim().toLowerCase();
+      let user = null;
+      if (category === 'student') {
+        user = this.data.students.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+      } else if (category === 'staff') {
+        user = this.data.staff.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+      } else if (category === 'parent') {
+        user = this.data.parents.find(x => x.loginId.toLowerCase() === id);
+      } else if (category === 'admin') {
+        user = this.data.admin.loginId.toLowerCase() === id ? this.data.admin : null;
+      }
+      if (!user) return false;
+      const hashedAns = await this.hashPassword(answer.trim().toLowerCase());
+      const storedAns = user.answer;
+      return storedAns === hashedAns || storedAns === answer.trim().toLowerCase();
+    }
+
+    async resetPassword(category, loginId, newPassword) {
+      const hashedPassword = await this.hashPassword(newPassword);
+      const id = loginId.trim().toLowerCase();
+      if (category === 'student') {
+        const s = this.data.students.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
         if (s) {
-          s.password = newPassword;
+          s.password = hashedPassword;
           this.save();
           this.logAudit(s.id, s.name, 'STUDENT', 'PASSWORD_RESET', 'Password reset performed.');
           return true;
         }
       } else if (category === 'staff') {
-        const prof = this.data.staff.find(x => x.loginId === loginId || x.email === loginId);
+        const prof = this.data.staff.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
         if (prof) {
-          prof.password = newPassword;
+          prof.password = hashedPassword;
           this.save();
           this.logAudit(prof.id, prof.name, 'STAFF', 'PASSWORD_RESET', 'Faculty password reset performed.');
           return true;
         }
       } else if (category === 'admin') {
-        if (this.data.admin.loginId === loginId) {
-          this.data.admin.password = newPassword;
+        if (this.data.admin.loginId.toLowerCase() === id) {
+          this.data.admin.password = hashedPassword;
           this.save();
           this.logAudit(this.data.admin.loginId, this.data.admin.name, 'ADMIN', 'PASSWORD_RESET', 'Admin password reset performed.');
+          return true;
+        }
+      } else if (category === 'parent') {
+        const p = this.data.parents.find(x => x.loginId.toLowerCase() === id);
+        if (p) {
+          p.password = hashedPassword;
+          this.save();
+          this.logAudit(p.id, p.name, 'PARENT', 'PASSWORD_RESET', 'Parent password reset performed.');
           return true;
         }
       }
@@ -370,9 +505,26 @@
       const req = this.data.leaveRequests.find(l => l.id === leaveId);
       if (req) {
         req.status = status;
-        // If approved, add excused attendance record
         if (status === 'approved') {
-          this.saveAttendanceSession(req.courseId, req.date, [{ studentId: req.studentId, status: 'excused' }]);
+          // Check existing attendance for this student on this course and date
+          const existingIdx = this.data.attendance.findIndex(
+            a => a.studentId === req.studentId && a.courseId === req.courseId && a.date === req.date
+          );
+          if (existingIdx !== -1) {
+            // Only convert absent -> excused, don't overwrite if present
+            if (this.data.attendance[existingIdx].status === 'absent') {
+              this.data.attendance[existingIdx].status = 'excused';
+            }
+          } else {
+            // If no record exists, create one as excused
+            this.data.attendance.push({
+              id: 'att_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+              date: req.date,
+              courseId: req.courseId,
+              studentId: req.studentId,
+              status: 'excused'
+            });
+          }
         }
         this.save();
         this.logAudit(updatedByUser ? updatedByUser.id : 'ADMIN', updatedByUser ? updatedByUser.name : 'Admin', 'FACULTY', 'LEAVE_STATUS', `Leave ${leaveId} marked ${status}`);
@@ -457,15 +609,48 @@
       }
     }
 
-    addOrUpdateStudent(s, user) {
+    async addOrUpdateStudent(s, user) {
+      const isHash = (str) => /^[a-f0-9]{64}$/i.test(str);
+      if (s.password && !isHash(s.password)) {
+        s.password = await this.hashPassword(s.password);
+      }
+      if (s.answer && !isHash(s.answer)) {
+        s.answer = await this.hashPassword(s.answer.trim().toLowerCase());
+      } else if (!s.answer) {
+        s.question = s.question || "What is your mother's maiden name?";
+        s.answer = await this.hashPassword("smith");
+      }
+
       if (s.id) {
         const idx = this.data.students.findIndex(x => x.id === s.id);
         if (idx !== -1) {
+          if (!s.password) s.password = this.data.students[idx].password;
           this.data.students[idx] = { ...this.data.students[idx], ...s };
+          
+          // Also update linked parent account name/login if student login changes
+          const parent = this.data.parents.find(p => p.studentId === s.id);
+          if (parent) {
+            parent.name = `Parent of ${s.name}`;
+            parent.loginId = 'parent_' + s.loginId.replace('student_', '');
+          }
         }
       } else {
         s.id = 'std_' + Date.now();
+        if (!s.password) s.password = await this.hashPassword('studentpassword');
         this.data.students.push(s);
+
+        // Dynamically create separate parent account linked to this student
+        const parentPass = await this.hashPassword('parentpassword');
+        const parentAns = await this.hashPassword('smith');
+        this.data.parents.push({
+          id: 'parent_' + s.id,
+          name: `Parent of ${s.name}`,
+          studentId: s.id,
+          loginId: 'parent_' + s.loginId.replace('student_', ''),
+          password: parentPass,
+          question: "What is your mother's maiden name?",
+          answer: parentAns
+        });
       }
       this.save();
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'STUDENT_UPDATE', `Saved student ${s.name}`);
@@ -475,18 +660,32 @@
       const s = this.data.students.find(x => x.id === studentId);
       this.data.students = this.data.students.filter(x => x.id !== studentId);
       this.data.attendance = this.data.attendance.filter(x => x.studentId !== studentId);
+      this.data.parents = this.data.parents.filter(x => x.studentId !== studentId); // delete parent account as well
       this.save();
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'STUDENT_DELETE', `Deleted student ${s ? s.name : studentId}`);
     }
 
-    addOrUpdateStaff(s, user) {
+    async addOrUpdateStaff(s, user) {
+      const isHash = (str) => /^[a-f0-9]{64}$/i.test(str);
+      if (s.password && !isHash(s.password)) {
+        s.password = await this.hashPassword(s.password);
+      }
+      if (s.answer && !isHash(s.answer)) {
+        s.answer = await this.hashPassword(s.answer.trim().toLowerCase());
+      } else if (!s.answer) {
+        s.question = s.question || "What is your mother's maiden name?";
+        s.answer = await this.hashPassword("smith");
+      }
+
       if (s.id) {
         const idx = this.data.staff.findIndex(x => x.id === s.id);
         if (idx !== -1) {
+          if (!s.password) s.password = this.data.staff[idx].password;
           this.data.staff[idx] = { ...this.data.staff[idx], ...s };
         }
       } else {
         s.id = 'prof_' + Date.now();
+        if (!s.password) s.password = await this.hashPassword('staffpassword');
         this.data.staff.push(s);
       }
       this.save();
@@ -498,6 +697,51 @@
       this.data.staff = this.data.staff.filter(x => x.id !== staffId);
       this.save();
       this.logAudit(user ? user.id : 'ADMIN', user ? user.name : 'Admin', 'ADMIN', 'STAFF_DELETE', `Deleted staff ${st ? st.name : staffId}`);
+    }
+
+    // --- QR CODE ATTENDANCE VERIFICATION ---
+    markStudentPresentViaQR(studentId, courseId, date, token) {
+      const qrTime = parseInt(token);
+      if (isNaN(qrTime)) return { success: false, message: "Invalid QR code token." };
+
+      // Time-window check: ±30 minutes (1800000 ms)
+      const diffMs = Math.abs(Date.now() - qrTime);
+      if (diffMs > 30 * 60 * 1000) {
+        return { success: false, message: "QR Code has expired (outside 30-minute window)." };
+      }
+
+      // Check if student is enrolled in the course
+      const student = this.getStudents().find(s => s.id === studentId);
+      if (!student || !student.courses.includes(courseId)) {
+        return { success: false, message: "You are not enrolled in this course." };
+      }
+
+      // Look for existing attendance record for this student on this course and date
+      const existingIdx = this.data.attendance.findIndex(
+        a => a.studentId === studentId && a.courseId === courseId && a.date === date
+      );
+
+      if (existingIdx !== -1) {
+        const currentStatus = this.data.attendance[existingIdx].status;
+        if (currentStatus === 'present' || currentStatus === 'excused') {
+          return { success: true, message: `Already marked as ${currentStatus}.` };
+        }
+        // Update status to 'present'
+        this.data.attendance[existingIdx].status = 'present';
+      } else {
+        // Create new record
+        this.data.attendance.push({
+          id: 'att_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+          date: date,
+          courseId: courseId,
+          studentId: studentId,
+          status: 'present'
+        });
+      }
+
+      this.save();
+      this.logAudit(studentId, student ? student.name : 'Student', 'STUDENT', 'QR_ATTENDANCE', `Marked present via QR for course ${courseId} on ${date}`);
+      return { success: true, message: "Attendance marked present successfully." };
     }
 
     // --- COURSE MANAGEMENT ---

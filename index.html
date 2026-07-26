@@ -18,6 +18,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- QRCode.js Library for Session QR Code Generation -->
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <!-- html5-qrcode Library for Student Camera QR Scanning -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 </head>
 <body>
 
@@ -751,10 +753,13 @@
             </div>
           </div>
 
-          <!-- Report Export Toolbar -->
+          <!-- Actions & Report Export Toolbar -->
           <div class="card" style="padding: 14px 24px; margin-bottom: 20px;">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:0.88rem; font-weight:600;"><i class="fa-solid fa-file-export"></i> Download Official Statements</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+              <div style="display:flex; gap:12px; align-items:center;">
+                <span style="font-size:0.88rem; font-weight:600;"><i class="fa-solid fa-clock-rotate-left"></i> Actions & Statements</span>
+                <button class="btn btn-primary btn-sm" id="student-scan-qr-btn" style="background-color: var(--accent); border-color: var(--accent);"><i class="fa-solid fa-camera"></i> Scan QR Attendance</button>
+              </div>
               <div style="display:flex; gap:8px;">
                 <button class="btn btn-secondary btn-sm" id="export-student-csv-btn"><i class="fa-solid fa-file-csv"></i> CSV Report</button>
                 <button class="btn btn-secondary btn-sm" id="export-student-xlsx-btn"><i class="fa-solid fa-file-excel"></i> Excel Report</button>
@@ -967,18 +972,37 @@
       <form id="forgot-form">
         <div class="modal-body">
           <input type="hidden" id="forgot-role">
-          <div class="form-group">
+          
+          <!-- Step 1: Lookup ID -->
+          <div class="form-group" id="forgot-step-id-group">
             <label for="forgot-login-id">Login ID or Registered Email</label>
-            <input type="text" id="forgot-login-id" class="form-control" required>
+            <div style="display:flex; gap:8px;">
+              <input type="text" id="forgot-login-id" class="form-control" placeholder="Enter ID/Email" required>
+              <button type="button" class="btn btn-secondary" id="forgot-verify-id-btn">Verify</button>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="forgot-new-pass">New Password</label>
-            <input type="password" id="forgot-new-pass" class="form-control" required>
+
+          <!-- Step 2: Answer Question & Set Password (initially hidden) -->
+          <div id="forgot-recovery-fields" class="hidden">
+            <div class="form-group" style="background-color: var(--bg-app); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <label style="font-weight: 600; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase;">Security Question</label>
+              <div id="forgot-question-text" style="font-size: 0.88rem; font-weight: 600; color: var(--primary); margin-top: 4px;">Loading...</div>
+            </div>
+
+            <div class="form-group" style="margin-top: 14px;">
+              <label for="forgot-answer">Your Answer</label>
+              <input type="text" id="forgot-answer" class="form-control" placeholder="Enter security answer" required>
+            </div>
+
+            <div class="form-group">
+              <label for="forgot-new-pass">New Password</label>
+              <input type="password" id="forgot-new-pass" class="form-control" placeholder="Enter new strong password" required>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" id="cancel-forgot-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Reset Password</button>
+          <button type="submit" class="btn btn-primary hidden" id="forgot-submit-btn">Reset Password</button>
         </div>
       </form>
     </div>
@@ -994,6 +1018,23 @@
       <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
         <div id="qr-code-display" style="padding:16px; background:#fff; border-radius:12px;"></div>
         <p style="font-size:0.8rem; color:var(--text-muted);">Students can scan this code to self-register attendance for today's session.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student QR Scanner Modal -->
+  <div class="modal-overlay" id="scanner-modal">
+    <div class="modal-container" style="max-width: 400px; text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">Scan Class QR Code</h3>
+        <button class="modal-close" id="close-scanner-modal">&times;</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+        <div id="qr-reader" style="width: 100%; max-width: 350px; background: #000; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color);"></div>
+        <p style="font-size:0.8rem; color:var(--text-muted);">Please point your camera at the faculty's generated QR Code.</p>
+      </div>
+      <div class="modal-footer" style="justify-content: center;">
+        <button type="button" class="btn btn-secondary" id="cancel-scanner-modal">Cancel Scan</button>
       </div>
     </div>
   </div>
@@ -1039,9 +1080,24 @@
           </div>
 
           <div class="form-group">
-            <label for="form-student-pass">Portal Password</label>
-            <input type="password" id="form-student-pass" class="form-control" required>
+            <label for="form-student-pass">Portal Password <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">(Leave blank to keep unchanged)</span></label>
+            <input type="password" id="form-student-pass" class="form-control">
             <div class="password-meter"><div class="strength-bar" id="std-strength-bar"></div></div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-student-question">Security Question (for recovery)</label>
+            <select id="form-student-question" class="form-control" required>
+              <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+              <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+              <option value="In which city were you born?">In which city were you born?</option>
+              <option value="What was your favorite school subject?">What was your favorite school subject?</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="form-student-answer">Security Answer</label>
+            <input type="text" id="form-student-answer" class="form-control" placeholder="Answer here" required>
           </div>
 
           <div class="form-group">
@@ -1095,9 +1151,24 @@
           </div>
 
           <div class="form-group">
-            <label for="form-staff-pass">Portal Password</label>
-            <input type="password" id="form-staff-pass" class="form-control" required>
+            <label for="form-staff-pass">Portal Password <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">(Leave blank to keep unchanged)</span></label>
+            <input type="password" id="form-staff-pass" class="form-control">
             <div class="password-meter"><div class="strength-bar" id="staff-strength-bar"></div></div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-staff-question">Security Question (for recovery)</label>
+            <select id="form-staff-question" class="form-control" required>
+              <option value="What is your mother's maiden name?">What is your mother's maiden name?</option>
+              <option value="What was the name of your first pet?">What was the name of your first pet?</option>
+              <option value="In which city were you born?">In which city were you born?</option>
+              <option value="What was your favorite school subject?">What was your favorite school subject?</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="form-staff-answer">Security Answer</label>
+            <input type="text" id="form-staff-answer" class="form-control" placeholder="Answer here" required>
           </div>
 
           <div class="form-group">

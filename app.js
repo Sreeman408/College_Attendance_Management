@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewModal = document.getElementById('preview-modal');
   const forgotModal = document.getElementById('forgot-modal');
   const qrModal = document.getElementById('qr-modal');
+  const scannerModal = document.getElementById('scanner-modal');
+  let html5QrScanner = null;
 
   // --- I18N DICTIONARY ---
   const I18N = {
@@ -244,6 +246,17 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const role = link.getAttribute('data-role');
         document.getElementById('forgot-role').value = role;
+        
+        // Reset recovery fields
+        document.getElementById('forgot-recovery-fields').classList.add('hidden');
+        document.getElementById('forgot-submit-btn').classList.add('hidden');
+        const stepIdGroup = document.getElementById('forgot-step-id-group');
+        if (stepIdGroup) {
+          stepIdGroup.style.pointerEvents = 'auto';
+          stepIdGroup.style.opacity = '1';
+        }
+        document.getElementById('forgot-form')?.reset();
+        
         forgotModal.classList.add('active');
       });
     });
@@ -251,6 +264,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-forgot-modal')?.addEventListener('click', () => forgotModal.classList.remove('active'));
     document.getElementById('cancel-forgot-modal')?.addEventListener('click', () => forgotModal.classList.remove('active'));
     document.getElementById('forgot-form')?.addEventListener('submit', handleForgotSubmit);
+
+    document.getElementById('forgot-verify-id-btn')?.addEventListener('click', () => {
+      const role = document.getElementById('forgot-role').value;
+      const loginId = document.getElementById('forgot-login-id').value.trim();
+      if (!loginId) {
+        showToast('Please enter your Login ID or Email.', 'warning');
+        return;
+      }
+      const question = window.CollegeDB.getSecurityQuestion(role, loginId);
+      if (question) {
+        document.getElementById('forgot-question-text').innerText = question;
+        document.getElementById('forgot-recovery-fields').classList.remove('hidden');
+        document.getElementById('forgot-submit-btn').classList.remove('hidden');
+        const stepIdGroup = document.getElementById('forgot-step-id-group');
+        if (stepIdGroup) {
+          stepIdGroup.style.pointerEvents = 'none';
+          stepIdGroup.style.opacity = '0.6';
+        }
+      } else {
+        showToast('Account ID or Email not found.', 'danger');
+      }
+    });
 
     // Form submissions
     document.getElementById('student-login-form')?.addEventListener('submit', (e) => handleFormSubmit(e, 'student'));
@@ -313,6 +348,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('export-student-pdf-btn')?.addEventListener('click', () => window.print());
     document.getElementById('export-ics-btn')?.addEventListener('click', exportCalendarICS);
 
+    // Student QR Scanner triggers
+    document.getElementById('student-scan-qr-btn')?.addEventListener('click', openScannerModal);
+    document.getElementById('close-scanner-modal')?.addEventListener('click', stopScanning);
+    document.getElementById('cancel-scanner-modal')?.addEventListener('click', stopScanning);
+
     // Leave Form
     document.getElementById('student-leave-form')?.addEventListener('submit', handleLeaveFormSubmit);
 
@@ -344,7 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (target) target.classList.remove('hidden');
   }
 
-  function handleFormSubmit(e, category) {
+  async function handleFormSubmit(e, category) {
     e.preventDefault();
     let loginId = '', pass = '', errBanner = null;
 
@@ -377,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const result = window.CollegeDB.authenticate(loginId, pass, category);
+    const result = await window.CollegeDB.authenticate(loginId, pass, category);
 
     if (result) {
       delete loginAttempts[loginId];
@@ -411,18 +451,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function handleForgotSubmit(e) {
+  async function handleForgotSubmit(e) {
     e.preventDefault();
     const role = document.getElementById('forgot-role').value;
     const loginId = document.getElementById('forgot-login-id').value.trim();
+    const answer = document.getElementById('forgot-answer').value;
     const newPass = document.getElementById('forgot-new-pass').value;
 
-    const success = window.CollegeDB.resetPassword(role, loginId, newPass);
+    const isAnswerCorrect = await window.CollegeDB.verifySecurityAnswer(role, loginId, answer);
+    if (!isAnswerCorrect) {
+      showToast('Incorrect security answer.', 'danger');
+      return;
+    }
+
+    const success = await window.CollegeDB.resetPassword(role, loginId, newPass);
     if (success) {
       showToast('Password reset successfully! Log in with your new password.', 'success');
       forgotModal.classList.remove('active');
     } else {
-      showToast('Account ID or Email not found.', 'danger');
+      showToast('Password reset failed. Please try again.', 'danger');
     }
   }
 
@@ -444,16 +491,29 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (sess.role === 'student') {
         userObj = window.CollegeDB.getStudents().find(s => s.id === sess.id);
       } else if (sess.role === 'parent') {
-        const wardId = sess.wardId || (sess.id ? sess.id.replace('parent_', '') : '');
-        const wardStudent = window.CollegeDB.getStudents().find(s => s.id === wardId || s.loginId === wardId || s.roll === wardId);
-        if (wardStudent) {
+        const parent = window.CollegeDB.data.parents ? window.CollegeDB.data.parents.find(p => p.id === sess.id) : null;
+        if (parent) {
+          const wardStudent = window.CollegeDB.getStudents().find(s => s.id === parent.studentId);
           userObj = {
-            id: 'parent_' + wardStudent.id,
-            name: `Parent of ${wardStudent.name}`,
-            email: `guardian.${wardStudent.email}`,
-            wardStudentId: wardStudent.id,
+            id: parent.id,
+            name: parent.name,
+            email: `guardian.${wardStudent ? wardStudent.email : 'parent@annamalai.edu'}`,
+            wardStudentId: parent.studentId,
             ward: wardStudent
           };
+        } else {
+          // Fallback legacy session restore if needed
+          const wardId = sess.wardId || (sess.id ? sess.id.replace('parent_', '') : '');
+          const wardStudent = window.CollegeDB.getStudents().find(s => s.id === wardId || s.loginId === wardId || s.roll === wardId);
+          if (wardStudent) {
+            userObj = {
+              id: 'parent_' + wardStudent.id,
+              name: `Parent of ${wardStudent.name}`,
+              email: `guardian.${wardStudent.email}`,
+              wardStudentId: wardStudent.id,
+              ward: wardStudent
+            };
+          }
         }
       }
 
@@ -731,7 +791,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('form-student-email').value = std.email;
       document.getElementById('form-student-dept').value = std.deptId;
       document.getElementById('form-student-login').value = std.loginId;
-      document.getElementById('form-student-pass').value = std.password;
+      document.getElementById('form-student-pass').value = '';
+      document.getElementById('form-student-pass').required = false;
+      document.getElementById('form-student-question').value = std.question || "What is your mother's maiden name?";
+      document.getElementById('form-student-answer').value = '';
+      document.getElementById('form-student-answer').required = false;
 
       std.courses.forEach(cId => {
         const chk = document.getElementById(`chk-${cId}`);
@@ -741,12 +805,14 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('student-modal-title').innerText = 'Register Student';
       document.getElementById('student-form').reset();
       document.getElementById('form-student-id').value = '';
+      document.getElementById('form-student-pass').required = true;
+      document.getElementById('form-student-answer').required = true;
     }
 
     studentModal.classList.add('active');
   }
 
-  function handleStudentModalSubmit(e) {
+  async function handleStudentModalSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('form-student-id').value;
     const name = document.getElementById('form-student-name').value;
@@ -755,10 +821,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const deptId = document.getElementById('form-student-dept').value;
     const loginId = document.getElementById('form-student-login').value.trim();
     const password = document.getElementById('form-student-pass').value;
+    const question = document.getElementById('form-student-question').value;
+    const answer = document.getElementById('form-student-answer').value;
 
     const checked = Array.from(document.querySelectorAll('input[name="allocated-courses"]:checked')).map(x => x.value);
 
-    window.CollegeDB.addOrUpdateStudent({ id, name, roll, email, deptId, loginId, password, courses: checked }, currentUser);
+    await window.CollegeDB.addOrUpdateStudent({ id, name, roll, email, deptId, loginId, password, question, answer, courses: checked }, currentUser);
     showToast('Student profile saved successfully.', 'success');
     studentModal.classList.remove('active');
     renderAdminStudentEditor();
@@ -830,7 +898,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('form-staff-email').value = prof.email;
       document.getElementById('form-staff-dept').value = prof.deptId;
       document.getElementById('form-staff-login').value = prof.loginId;
-      document.getElementById('form-staff-pass').value = prof.password;
+      document.getElementById('form-staff-pass').value = '';
+      document.getElementById('form-staff-pass').required = false;
+      document.getElementById('form-staff-question').value = prof.question || "What is your mother's maiden name?";
+      document.getElementById('form-staff-answer').value = '';
+      document.getElementById('form-staff-answer').required = false;
 
       prof.courses.forEach(cId => {
         const chk = document.getElementById(`prof-chk-${cId}`);
@@ -840,12 +912,14 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('staff-modal-title').innerText = 'Add Faculty Professor';
       document.getElementById('staff-form').reset();
       document.getElementById('form-staff-id').value = '';
+      document.getElementById('form-staff-pass').required = true;
+      document.getElementById('form-staff-answer').required = true;
     }
 
     staffModal.classList.add('active');
   }
 
-  function handleStaffModalSubmit(e) {
+  async function handleStaffModalSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('form-staff-id').value;
     const name = document.getElementById('form-staff-name').value;
@@ -853,10 +927,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const deptId = document.getElementById('form-staff-dept').value;
     const loginId = document.getElementById('form-staff-login').value.trim();
     const password = document.getElementById('form-staff-pass').value;
+    const question = document.getElementById('form-staff-question').value;
+    const answer = document.getElementById('form-staff-answer').value;
 
     const checked = Array.from(document.querySelectorAll('input[name="prof-allocated-courses"]:checked')).map(x => x.value);
 
-    window.CollegeDB.addOrUpdateStaff({ id, name, email, deptId, loginId, password, courses: checked }, currentUser);
+    await window.CollegeDB.addOrUpdateStaff({ id, name, email, deptId, loginId, password, question, answer, courses: checked }, currentUser);
     showToast('Faculty professor saved successfully.', 'success');
     staffModal.classList.remove('active');
     renderAdminStaffEditor();
@@ -1355,6 +1431,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const sessionToken = JSON.stringify({ courseId, date, token: Date.now() });
     new QRCode(qrDisplay, { text: sessionToken, width: 160, height: 160 });
     qrModal.classList.add('active');
+  }
+
+  function openScannerModal() {
+    scannerModal.classList.add('active');
+    
+    if (typeof Html5Qrcode !== 'undefined') {
+      html5QrScanner = new Html5Qrcode("qr-reader");
+      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+        stopScanning();
+        processScannedQR(decodedText);
+      };
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      
+      html5QrScanner.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+        .catch(err => {
+          console.warn("Back camera start failed, falling back to user camera:", err);
+          html5QrScanner.start({ facingMode: "user" }, config, qrCodeSuccessCallback)
+            .catch(err2 => {
+              showToast("Failed to access camera: " + err2, "danger");
+              scannerModal.classList.remove('active');
+            });
+        });
+    } else {
+      showToast("QR scanner library not loaded. Please try again.", "danger");
+    }
+  }
+
+  function stopScanning() {
+    scannerModal.classList.remove('active');
+    if (html5QrScanner) {
+      html5QrScanner.stop().then(() => {
+        html5QrScanner = null;
+      }).catch(err => {
+        console.warn("Failed to stop scanner cleanly:", err);
+        html5QrScanner = null;
+      });
+    }
+  }
+
+  function processScannedQR(decodedText) {
+    try {
+      const data = JSON.parse(decodedText);
+      if (!data.courseId || !data.date || !data.token) {
+        showToast("Invalid QR code format.", "danger");
+        return;
+      }
+      
+      const res = window.CollegeDB.markStudentPresentViaQR(currentUser.id, data.courseId, data.date, data.token);
+      if (res.success) {
+        showToast(res.message, "success");
+        renderStudentDashboard();
+      } else {
+        showToast(res.message, "danger");
+      }
+    } catch (e) {
+      showToast("Failed to parse QR Code: " + e.message, "danger");
+    }
   }
 
   function handleCancelClassClick() {
