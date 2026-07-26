@@ -48,7 +48,9 @@
     ],
     parents: [
       { id: 'parent1', name: 'Robert Smith', email: 'r.smith@gmail.com', loginId: 'parent_alice', password: 'parentpassword', studentIds: ['std1'], question: "What is your mother's maiden name?", answer: 'smith' },
-      { id: 'parent2', name: 'Mary Johnson', email: 'm.johnson@gmail.com', loginId: 'parent_bob', password: 'parentpassword', studentIds: ['std2', 'std3'], question: "What is your mother's maiden name?", answer: 'johnson' }
+      { id: 'parent2', name: 'Mary Johnson', email: 'm.johnson@gmail.com', loginId: 'parent_bob', password: 'parentpassword', studentIds: ['std2', 'std3'], question: "What is your mother's maiden name?", answer: 'johnson' },
+      { id: 'parent3', name: 'Thomas Prince', email: 't.prince@gmail.com', loginId: 'parent_diana', password: 'parentpassword', studentIds: ['std4'], question: "What is your mother's maiden name?", answer: 'prince' },
+      { id: 'parent4', name: 'Arthur Wright', email: 'a.wright@gmail.com', loginId: 'parent_evan', password: 'parentpassword', studentIds: ['std5'], question: "What is your mother's maiden name?", answer: 'wright' }
     ],
     timetable: [
       { id: 'tt1', day: 'Monday', time: '09:00 AM - 10:30 AM', courseId: 'cs101', classroom: 'Lecture Hall 101', staffId: 'prof1' },
@@ -204,6 +206,37 @@
             migrated = true;
           }
         }
+      }
+
+      // Ensure parent3 and parent4 are injected into localStorage database if missing
+      this.data.parents = this.data.parents || [];
+      const hasParent3 = this.data.parents.some(p => p.id === 'parent3');
+      if (!hasParent3) {
+        this.data.parents.push({
+          id: 'parent3',
+          name: 'Thomas Prince',
+          email: 't.prince@gmail.com',
+          loginId: 'parent_diana',
+          password: await this.hashPassword('parentpassword'),
+          studentIds: ['std4'],
+          question: "What is your mother's maiden name?",
+          answer: await this.hashPassword('prince')
+        });
+        migrated = true;
+      }
+      const hasParent4 = this.data.parents.some(p => p.id === 'parent4');
+      if (!hasParent4) {
+        this.data.parents.push({
+          id: 'parent4',
+          name: 'Arthur Wright',
+          email: 'a.wright@gmail.com',
+          loginId: 'parent_evan',
+          password: await this.hashPassword('parentpassword'),
+          studentIds: ['std5'],
+          question: "What is your mother's maiden name?",
+          answer: await this.hashPassword('wright')
+        });
+        migrated = true;
       }
 
       if (migrated) {
