@@ -80,6 +80,22 @@ document.addEventListener('DOMContentLoaded', () => {
       student_login_title: 'மாணவர் உள்நுழைவு',
       staff_login_title: 'ஆசிரியர் உள்நுழைவு',
       admin_login_title: 'நிர்வாக உள்நுழைவு'
+    },
+    hi: {
+      univ_title: 'अन्नामलाई विश्वविद्यालय',
+      portal_subtitle: 'कॉलेज पोर्टल गेटवे',
+      card_student_title: 'छात्र पोर्टल',
+      card_student_desc: 'विषयवार उपस्थिति प्रतिशत, ग्रेड और व्याख्यान कार्यक्रम देखने के लिए लॉगिन करें।',
+      card_parent_title: 'अभिभावक गेटवे',
+      card_parent_desc: 'अपने बच्चे की उपस्थिति दर, कमी अलर्ट और स्वीकृत अवकाश रिकॉर्ड की निगरानी करें।',
+      card_staff_title: 'संकाय पोर्टल',
+      card_staff_desc: 'आवंटित पाठ्यक्रमों तक पहुँचें, कार्यक्रम अपडेट करें और छात्र उपस्थिति दर्ज करें।',
+      card_admin_title: 'प्रशासक रजिस्ट्री',
+      card_admin_desc: 'शैक्षणिक रजिस्टर अपलोड करें और पाठ्यक्रम, छात्र या कर्मचारी डेटाबेस को संशोधित करें।',
+      back_portals: 'पोर्टल पर वापस जाएं',
+      student_login_title: 'छात्र लॉगिन',
+      staff_login_title: 'संकाय लॉगिन',
+      admin_login_title: 'प्रशासक लॉगिन'
     }
   };
 
@@ -149,10 +165,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function toggleLanguage() {
-    currentLang = currentLang === 'en' ? 'ta' : 'en';
+    if (currentLang === 'en') {
+      currentLang = 'ta';
+    } else if (currentLang === 'ta') {
+      currentLang = 'hi';
+    } else {
+      currentLang = 'en';
+    }
     langLabel.innerText = currentLang.toUpperCase();
     applyLanguageTranslations();
-    showToast(`Switched language to ${currentLang === 'en' ? 'English' : 'Tamil (தமிழ்)'}`, 'info');
+    const langNames = { en: 'English', ta: 'Tamil (தமிழ்)', hi: 'Hindi (हिन्दी)' };
+    showToast(`Switched language to ${langNames[currentLang]}`, 'info');
   }
 
   function applyLanguageTranslations() {
@@ -572,6 +595,52 @@ document.addEventListener('DOMContentLoaded', () => {
       userName.innerText = currentUser.name;
       setActiveTab('parent-dashboard');
     }
+
+    renderBottomNav();
+  }
+
+  function renderBottomNav() {
+    const bottomNav = document.getElementById('bottom-nav');
+    if (!bottomNav) return;
+    bottomNav.innerHTML = '';
+    
+    let navItems = [];
+    if (currentRole === 'admin') {
+      navItems = [
+        { tab: 'admin-dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+        { tab: 'admin-uploads', icon: 'fa-cloud-arrow-up', label: 'Import' },
+        { tab: 'admin-edit-student', icon: 'fa-user-graduate', label: 'Students' },
+        { tab: 'admin-edit-staff', icon: 'fa-users-gear', label: 'Faculty' }
+      ];
+    } else if (currentRole === 'staff') {
+      navItems = [
+        { tab: 'staff-dashboard', icon: 'fa-chalkboard-user', label: 'Subjects' },
+        { tab: 'staff-marker', icon: 'fa-calendar-check', label: 'Marker' },
+        { tab: 'staff-view-pct', icon: 'fa-chart-simple', label: 'Metrics' }
+      ];
+    } else if (currentRole === 'student') {
+      navItems = [
+        { tab: 'student-dashboard', icon: 'fa-chart-line', label: 'Overview' },
+        { tab: 'student-timetable', icon: 'fa-calendar-days', label: 'Timetable' }
+      ];
+    } else if (currentRole === 'parent') {
+      navItems = [
+        { tab: 'parent-dashboard', icon: 'fa-users', label: 'Ward' }
+      ];
+    }
+
+    navItems.forEach(item => {
+      const a = document.createElement('a');
+      a.className = `bottom-nav-link ${activeTab === item.tab ? 'active' : ''}`;
+      a.href = '#';
+      a.setAttribute('data-tab', item.tab);
+      a.innerHTML = `<i class="fa-solid ${item.icon}"></i><span>${item.label}</span>`;
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        setActiveTab(item.tab);
+      });
+      bottomNav.appendChild(a);
+    });
   }
 
   function handleLogout() {
@@ -598,6 +667,11 @@ document.addEventListener('DOMContentLoaded', () => {
     activeTab = tabId;
 
     document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+      if (link.getAttribute('data-tab') === tabId) link.classList.add('active');
+      else link.classList.remove('active');
+    });
+
+    document.querySelectorAll('.bottom-nav-link').forEach(link => {
       if (link.getAttribute('data-tab') === tabId) link.classList.add('active');
       else link.classList.remove('active');
     });
