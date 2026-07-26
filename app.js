@@ -1658,7 +1658,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function parseUploadedFile(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
+    let ext = file.name.split('.').pop().toLowerCase().trim();
+    
+    // Fallback MIME type detection if extension is not recognized
+    if (!['csv', 'xlsx', 'xls', 'json', 'txt'].includes(ext)) {
+      if (file.type === 'application/json') ext = 'json';
+      else if (file.type === 'text/csv' || file.type === 'text/plain') ext = 'csv';
+      else if (file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ext = 'xlsx';
+      else if (file.type === 'application/vnd.ms-excel') ext = 'xls';
+    }
+
     const reader = new FileReader();
 
     if (ext === 'json') {
@@ -1671,7 +1680,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       };
       reader.readAsText(file);
-    } else if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+    } else if (ext === 'csv' || ext === 'txt') {
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const workbook = XLSX.read(text, { type: 'string' });
+          const firstSheet = workbook.SheetNames[0];
+          const parsed = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
+          processPreflightBatch(parsed);
+        } catch (err) {
+          showToast('Error parsing CSV file format.', 'danger');
+        }
+      };
+      reader.readAsText(file);
+    } else if (ext === 'xlsx' || ext === 'xls') {
       reader.onload = (e) => {
         try {
           const data = new Uint8Array(e.target.result);
@@ -1680,7 +1702,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const parsed = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
           processPreflightBatch(parsed);
         } catch (err) {
-          showToast('Error parsing Excel/CSV file format.', 'danger');
+          showToast('Error parsing Excel file format.', 'danger');
         }
       };
       reader.readAsArrayBuffer(file);
