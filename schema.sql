@@ -165,30 +165,30 @@ INSERT INTO courses (id, name, code, dept_id, type) VALUES
 
 -- USERS SEED (ADMIN, STAFF, STUDENTS, PARENTS)
 -- Passwords:
--- adminpassword  -> 25e4ee4e8593c66f68800164c4832eb1e79391ab1a129034cb740d9d95f87b8d
--- staffpassword  -> a81e52dbb0f1a54056298197779f41b31a89f929fa3a992688849b2f7d34252e
--- studentpassword-> ef671607ef3a3111f19f20ef77df72fa0ee216db8a8b13d2f9547d2c4e20fb37
--- parentpassword -> 5ca15aeab56ef83ef07a1b32d2012658863f81014e7a835b0d069ec6d62a9009
+-- adminpassword  -> 749f09bade8aca755660eeb17792da880218d4fbdc4e25fbec279d7fe9f65d70
+-- staffpassword  -> 7204d2b277a11cb0d2418baf7dc0554c46bca2285892222aa989e82e1637d4ed
+-- studentpassword-> 68eaeeaef51a40035b5d3705c4e0ffd68036b6b821361765145f410b0f996e11
+-- parentpassword -> d2a78bcdcfa6c0e4dad347d7011fab84a24405ca74932e4368541c084b34b056
 -- security answer 'smith' -> f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff
 
 INSERT INTO users (id, role, name, email, roll, dept_id, login_id, password_hash, question, answer_hash) VALUES
-('admin101', 'admin', 'Registrar (Admin Office)', 'admin@annamalai.edu', NULL, 'cse', 'admin101', '25e4ee4e8593c66f68800164c4832eb1e79391ab1a129034cb740d9d95f87b8d', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('admin101', 'admin', 'Registrar (Admin Office)', 'admin@annamalai.edu', NULL, 'cse', 'admin101', '749f09bade8aca755660eeb17792da880218d4fbdc4e25fbec279d7fe9f65d70', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
 
-('prof1', 'staff', 'Dr. Alan Turing', 'a.turing@annamalai.edu', NULL, 'cse', 'staff_alan', 'a81e52dbb0f1a54056298197779f41b31a89f929fa3a992688849b2f7d34252e', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('prof2', 'staff', 'Prof. Grace Hopper', 'g.hopper@annamalai.edu', NULL, 'cse', 'staff_grace', 'a81e52dbb0f1a54056298197779f41b31a89f929fa3a992688849b2f7d34252e', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('prof3', 'staff', 'Dr. Edgar Codd', 'e.codd@annamalai.edu', NULL, 'it', 'staff_codd', 'a81e52dbb0f1a54056298197779f41b31a89f929fa3a992688849b2f7d34252e', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('prof4', 'staff', 'Prof. Claude Shannon', 'c.shannon@annamalai.edu', NULL, 'ece', 'staff_shannon', 'a81e52dbb0f1a54056298197779f41b31a89f929fa3a992688849b2f7d34252e', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('prof1', 'staff', 'Dr. Alan Turing', 'a.turing@annamalai.edu', NULL, 'cse', 'staff_alan', '7204d2b277a11cb0d2418baf7dc0554c46bca2285892222aa989e82e1637d4ed', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('prof2', 'staff', 'Prof. Grace Hopper', 'g.hopper@annamalai.edu', NULL, 'cse', 'staff_grace', '7204d2b277a11cb0d2418baf7dc0554c46bca2285892222aa989e82e1637d4ed', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('prof3', 'staff', 'Dr. Edgar Codd', 'e.codd@annamalai.edu', NULL, 'it', 'staff_codd', '7204d2b277a11cb0d2418baf7dc0554c46bca2285892222aa989e82e1637d4ed', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('prof4', 'staff', 'Prof. Claude Shannon', 'c.shannon@annamalai.edu', NULL, 'ece', 'staff_shannon', '7204d2b277a11cb0d2418baf7dc0554c46bca2285892222aa989e82e1637d4ed', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
 
-('std1', 'student', 'Alice Smith', 'alice.s@annamalai.edu', 'CSE-2026-01', 'cse', 'student_alice', 'ef671607ef3a3111f19f20ef77df72fa0ee216db8a8b13d2f9547d2c4e20fb37', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('std2', 'student', 'Bob Johnson', 'bob.j@annamalai.edu', 'CSE-2026-02', 'cse', 'student_bob', 'ef671607ef3a3111f19f20ef77df72fa0ee216db8a8b13d2f9547d2c4e20fb37', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('std3', 'student', 'Charlie Brown', 'charlie.b@annamalai.edu', 'CSE-2026-03', 'cse', 'student_charlie', 'ef671607ef3a3111f19f20ef77df72fa0ee216db8a8b13d2f9547d2c4e20fb37', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('std4', 'student', 'Diana Prince', 'diana.p@annamalai.edu', 'CSE-2026-04', 'cse', 'student_diana', 'ef671607ef3a3111f19f20ef77df72fa0ee216db8a8b13d2f9547d2c4e20fb37', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('std5', 'student', 'Evan Wright', 'evan.w@annamalai.edu', 'CSE-2026-05', 'cse', 'student_evan', 'ef671607ef3a3111f19f20ef77df72fa0ee216db8a8b13d2f9547d2c4e20fb37', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('std1', 'student', 'Alice Smith', 'alice.s@annamalai.edu', 'CSE-2026-01', 'cse', 'student_alice', '68eaeeaef51a40035b5d3705c4e0ffd68036b6b821361765145f410b0f996e11', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('std2', 'student', 'Bob Johnson', 'bob.j@annamalai.edu', 'CSE-2026-02', 'cse', 'student_bob', '68eaeeaef51a40035b5d3705c4e0ffd68036b6b821361765145f410b0f996e11', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('std3', 'student', 'Charlie Brown', 'charlie.b@annamalai.edu', 'CSE-2026-03', 'cse', 'student_charlie', '68eaeeaef51a40035b5d3705c4e0ffd68036b6b821361765145f410b0f996e11', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('std4', 'student', 'Diana Prince', 'diana.p@annamalai.edu', 'CSE-2026-04', 'cse', 'student_diana', '68eaeeaef51a40035b5d3705c4e0ffd68036b6b821361765145f410b0f996e11', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('std5', 'student', 'Evan Wright', 'evan.w@annamalai.edu', 'CSE-2026-05', 'cse', 'student_evan', '68eaeeaef51a40035b5d3705c4e0ffd68036b6b821361765145f410b0f996e11', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
 
-('parent1', 'parent', 'Robert Smith', 'r.smith@gmail.com', NULL, NULL, 'parent_alice', '5ca15aeab56ef83ef07a1b32d2012658863f81014e7a835b0d069ec6d62a9009', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('parent2', 'parent', 'Mary Johnson', 'm.johnson@gmail.com', NULL, NULL, 'parent_bob', '5ca15aeab56ef83ef07a1b32d2012658863f81014e7a835b0d069ec6d62a9009', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('parent3', 'parent', 'Thomas Prince', 't.prince@gmail.com', NULL, NULL, 'parent_diana', '5ca15aeab56ef83ef07a1b32d2012658863f81014e7a835b0d069ec6d62a9009', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
-('parent4', 'parent', 'Arthur Wright', 'a.wright@gmail.com', NULL, NULL, 'parent_evan', '5ca15aeab56ef83ef07a1b32d2012658863f81014e7a835b0d069ec6d62a9009', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff');
+('parent1', 'parent', 'Robert Smith', 'r.smith@gmail.com', NULL, NULL, 'parent_alice', 'd2a78bcdcfa6c0e4dad347d7011fab84a24405ca74932e4368541c084b34b056', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('parent2', 'parent', 'Mary Johnson', 'm.johnson@gmail.com', NULL, NULL, 'parent_bob', 'd2a78bcdcfa6c0e4dad347d7011fab84a24405ca74932e4368541c084b34b056', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('parent3', 'parent', 'Thomas Prince', 't.prince@gmail.com', NULL, NULL, 'parent_diana', 'd2a78bcdcfa6c0e4dad347d7011fab84a24405ca74932e4368541c084b34b056', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff'),
+('parent4', 'parent', 'Arthur Wright', 'a.wright@gmail.com', NULL, NULL, 'parent_evan', 'd2a78bcdcfa6c0e4dad347d7011fab84a24405ca74932e4368541c084b34b056', 'What is your mother''s maiden name?', 'f454e600fa3be15c2ec44e05bbef0fb835e0ecfa4eb77ae0f1712a4eeae587ff');
 
 -- STAFF COURSES SEED
 INSERT INTO staff_courses (staff_id, course_id) VALUES

@@ -664,7 +664,35 @@
     load() {
       // Pure Supabase Architecture: In-memory baseline data initialized from DEFAULT_DB before cloud pull
       this.data = JSON.parse(JSON.stringify(DEFAULT_DB));
-      this.migrateTimetableData();
+      if (typeof this.migrateTimetableData === 'function') {
+        this.migrateTimetableData();
+      }
+    }
+
+    migrateTimetableData() {
+      if (!this.data || !Array.isArray(this.data.timetable)) {
+        if (this.data) this.data.timetable = [];
+        return;
+      }
+      this.data.timetable.forEach((slot) => {
+        if (!slot.id) {
+          slot.id = 'tt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+        }
+        if (!slot.courseId && slot.courseCode) {
+          const course = (this.data.courses || []).find(c => 
+            c.code.toLowerCase() === slot.courseCode.toLowerCase() ||
+            (slot.courseName && c.name.toLowerCase() === slot.courseName.toLowerCase())
+          );
+          if (course) slot.courseId = course.id;
+        }
+        if (!slot.staffId && slot.professor) {
+          const staff = (this.data.staff || []).find(st => 
+            st.name.toLowerCase() === slot.professor.toLowerCase() ||
+            (st.loginId && st.loginId.toLowerCase() === slot.professor.toLowerCase())
+          );
+          if (staff) slot.staffId = staff.id;
+        }
+      });
     }
 
     save() {
