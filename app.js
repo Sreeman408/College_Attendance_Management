@@ -332,14 +332,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cancel-forgot-modal')?.addEventListener('click', () => forgotModal.classList.remove('active'));
     document.getElementById('forgot-form')?.addEventListener('submit', handleForgotSubmit);
 
-    document.getElementById('forgot-verify-id-btn')?.addEventListener('click', () => {
+    document.getElementById('forgot-verify-id-btn')?.addEventListener('click', async () => {
       const role = document.getElementById('forgot-role').value;
       const loginId = document.getElementById('forgot-login-id').value.trim();
       if (!loginId) {
         showToast('Please enter your Login ID or Email.', 'warning');
         return;
       }
-      const question = window.CollegeDB.getSecurityQuestion(role, loginId);
+      const question = await window.CollegeDB.getSecurityQuestion(role, loginId);
       if (question) {
         document.getElementById('forgot-question-text').innerText = question;
         document.getElementById('forgot-recovery-fields').classList.remove('hidden');
@@ -578,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function checkActiveSession() {
+  async function checkActiveSession() {
     const raw = sessionStorage.getItem('au_session');
     if (!raw) {
       showLoginScreen();
@@ -586,6 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
+      await window.CollegeDB.ensureSupabaseLoaded();
       const sess = JSON.parse(raw);
       let userObj = null;
 

@@ -111,10 +111,23 @@
 
   class CollegeCMSDB {
     constructor() {
+      this.isLoaded = false;
       this.load();
-      this.migrateToHashedPasswords().then(() => {
-        this.initSupabaseSync().catch(console.error);
-      }).catch(console.error);
+      this.syncPromise = this.migrateToHashedPasswords().then(() => {
+        return this.initSupabaseSync();
+      }).then(() => {
+        this.isLoaded = true;
+      }).catch(err => {
+        console.error('Initialization error:', err);
+        this.isLoaded = true;
+      });
+    }
+
+    async ensureSupabaseLoaded() {
+      if (this.syncPromise) {
+        await this.syncPromise;
+      }
+      this.isLoaded = true;
     }
 
     async initSupabaseSync() {
@@ -1080,32 +1093,36 @@
 
     // --- AUTHENTICATION ---
     async authenticate(loginId, password, category) {
+      await this.ensureSupabaseLoaded();
+      const cleanLoginId = (loginId || '').trim();
       const hashedPassword = await this.hashPassword(password);
       
       if (category === 'admin') {
         const ad = this.getAdmin();
-        if (ad.loginId === loginId && ad.password === hashedPassword) {
+        if (ad && (ad.loginId || '').toLowerCase() === cleanLoginId.toLowerCase() && ad.password === hashedPassword) {
           return { role: 'admin', user: ad };
         }
       } else if (category === 'staff') {
-        const prof = this.getStaff().find(s => s.loginId === loginId && s.password === hashedPassword);
+        const prof = (this.getStaff() || []).find(s => (s.loginId || '').toLowerCase() === cleanLoginId.toLowerCase() && s.password === hashedPassword);
         if (prof) {
           return { role: 'staff', user: prof };
         }
       } else if (category === 'student') {
-        const student = this.getStudents().find(s => s.loginId === loginId && s.password === hashedPassword);
+        const student = (this.getStudents() || []).find(s => (s.loginId || '').toLowerCase() === cleanLoginId.toLowerCase() && s.password === hashedPassword);
         if (student) {
           return { role: 'student', user: student };
         }
       } else if (category === 'parent') {
-        return this.authenticateParent(loginId, hashedPassword);
+        return this.authenticateParent(cleanLoginId, hashedPassword);
       }
       return null;
     }
 
-    authenticateParent(loginId, hashedPassword) {
+    async authenticateParent(loginId, hashedPassword) {
+      await this.ensureSupabaseLoaded();
+      const cleanLoginId = (loginId || '').trim().toLowerCase();
       const parent = (this.data.parents || []).find(p => 
-        p.loginId.toLowerCase() === loginId.toLowerCase() && 
+        (p.loginId || '').toLowerCase() === cleanLoginId && 
         p.password === hashedPassword
       );
 
@@ -1131,37 +1148,38 @@
       return null;
     }
 
-    getSecurityQuestion(category, loginId) {
-      const id = loginId.trim().toLowerCase();
+    async getSecurityQuestion(category, loginId) {
+      await this.ensureSupabaseLoaded();
+      const id = (loginId || '').trim().toLowerCase();
       let user = null;
       if (category === 'student') {
-        user = this.data.students.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+        user = (this.data.students || []).find(x => (x.loginId || '').toLowerCase() === id || (x.email || '').toLowerCase() === id);
       } else if (category === 'staff') {
-        user = this.data.staff.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+        user = (this.data.staff || []).find(x => (x.loginId || '').toLowerCase() === id || (x.email || '').toLowerCase() === id);
       } else if (category === 'parent') {
-        user = this.data.parents.find(x => x.loginId.toLowerCase() === id);
+        user = (this.data.parents || []).find(x => (x.loginId || '').toLowerCase() === id);
       } else if (category === 'admin') {
-        user = this.data.admin.loginId.toLowerCase() === id ? this.data.admin : null;
+        user = this.data.admin && (this.data.admin.loginId || '').toLowerCase() === id ? this.data.admin : null;
       }
       return user ? user.question || "What is your mother's maiden name?" : null;
     }
 
     async verifySecurityAnswer(category, loginId, answer) {
-      const id = loginId.trim().toLowerCase();
+      await this.ensureSupabaseLoaded();
+      const id = (loginId || '').trim().toLowerCase();
       let user = null;
       if (category === 'student') {
-        user = this.data.students.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+        user = (this.data.students || []).find(x => (x.loginId || '').toLowerCase() === id || (x.email || '').toLowerCase() === id);
       } else if (category === 'staff') {
-        user = this.data.staff.find(x => x.loginId.toLowerCase() === id || x.email.toLowerCase() === id);
+        user = (this.data.staff || []).find(x => (x.loginId || '').toLowerCase() === id || (x.email || '').toLowerCase() === id);
       } else if (category === 'parent') {
-        user = this.data.parents.find(x => x.loginId.toLowerCase() === id);
+        user = (this.data.parents || []).find(x => (x.loginId || '').toLowerCase() === id);
       } else if (category === 'admin') {
-        user = this.data.admin.loginId.toLowerCase() === id ? this.data.admin : null;
+        user = this.data.admin && (this.data.admin.loginId || '').toLowerCase() === id ? this.data.admin : null;
       }
-      if (!user) return false;
-      const hashedAns = await this.hashPassword(answer.trim().toLowerCase());
-      const storedAns = user.answer;
-      return storedAns === hashedAns || storedAns === answer.trim().toLowerCase();
+      if (!user || !user.answer) return false;
+      const hashedAnswer = await this.hashPassword(answer.trim().toLowerCase());
+      return user.answer === hashedAnswer || user.answer === answer.trim().toLowerCase();
     }
 
     async resetPassword(category, loginId, newPassword) {
