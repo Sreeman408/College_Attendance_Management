@@ -100,14 +100,14 @@ body {
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
-/* --- PORTAL LOGIN HUB --- */
+/* --- PORTAL LOGIN HUB (Light Mode Aesthetic Dark Theme) --- */
 .login-screen {
   width: 100%;
   height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), #4a0012, #1f0007);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0d1527 100%);
   position: relative;
   overflow: hidden;
   z-index: 1;
@@ -122,7 +122,7 @@ body {
   left: -10%;
   width: 50%;
   height: 60%;
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, rgba(0, 0, 0, 0) 70%);
   border-radius: var(--radius-full);
   z-index: -1;
 }
@@ -134,7 +134,7 @@ body {
   right: -10%;
   width: 60%;
   height: 70%;
-  background: radial-gradient(circle, rgba(128, 0, 32, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
   border-radius: var(--radius-full);
   z-index: -1;
 }
@@ -161,27 +161,27 @@ body {
   background-color: #ffffff;
   padding: 4px;
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
 }
 
 .portal-title {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 2.2rem;
-  color: var(--accent);
+  color: #f59e0b;
   letter-spacing: -0.01em;
   text-transform: uppercase;
-  text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  text-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .portal-subtitle {
   font-size: 0.95rem;
-  color: var(--text-inverse);
+  color: #94a3b8;
   font-weight: 500;
   letter-spacing: 0.08em;
   margin-top: 4px;
   text-transform: uppercase;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .portal-cards-grid {
@@ -200,8 +200,8 @@ body {
 }
 
 .portal-card {
-  background-color: rgba(255, 255, 255, 0.95);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(30, 41, 59, 0.88);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-lg);
   padding: 36px 24px;
   display: flex;
@@ -209,7 +209,8 @@ body {
   align-items: center;
   text-align: center;
   cursor: pointer;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
   transition: all var(--transition-slow);
 }
 
@@ -220,15 +221,15 @@ body {
 
 .portal-card:hover {
   transform: translateY(-8px);
-  border-color: var(--accent);
-  box-shadow: 0 15px 30px rgba(212, 175, 55, 0.25);
+  border-color: #f59e0b;
+  box-shadow: 0 20px 40px rgba(245, 158, 11, 0.2);
 }
 
 .portal-card-icon {
   width: 68px;
   height: 68px;
-  background-color: var(--primary-light);
-  color: var(--primary);
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
@@ -239,8 +240,8 @@ body {
 }
 
 .portal-card:hover .portal-card-icon {
-  background-color: var(--accent);
-  color: #1f0007;
+  background-color: #f59e0b;
+  color: #0f172a;
   transform: scale(1.05);
 }
 
@@ -248,7 +249,7 @@ body {
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 1.15rem;
-  color: var(--primary);
+  color: #f8fafc;
   margin-bottom: 8px;
 }
 
@@ -258,7 +259,7 @@ body {
 
 .portal-card-desc {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: #94a3b8;
   line-height: 1.4;
 }
 
@@ -266,14 +267,46 @@ body {
 .login-card {
   width: 100%;
   max-width: 440px;
-  background-color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(30, 41, 59, 0.94);
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
-  border: 1.5px solid rgba(212, 175, 55, 0.4);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+  border: 1.5px solid rgba(245, 158, 11, 0.35);
+  backdrop-filter: blur(12px);
   padding: 32px;
   display: flex;
   flex-direction: column;
   animation: slideUp var(--transition-normal) forwards;
+}
+
+.login-card .form-group label {
+  color: #cbd5e1;
+}
+
+.login-card .form-control {
+  background-color: #0f172a;
+  color: #f8fafc;
+  border: 1px solid #334155;
+}
+
+.login-card .form-control:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.login-card .form-control::placeholder {
+  color: #64748b;
+}
+
+.login-card .btn-primary {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+}
+
+.login-card .btn-primary:hover {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
 }
 
 [data-theme="dark"] .login-card {
@@ -300,7 +333,7 @@ body {
   font-family: var(--font-display);
   font-weight: 800;
   font-size: 1.35rem;
-  color: var(--primary);
+  color: #f8fafc;
   text-transform: uppercase;
 }
 
@@ -310,7 +343,7 @@ body {
 
 .form-subtitle {
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: #94a3b8;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -319,7 +352,7 @@ body {
 
 .back-link {
   font-size: 0.8rem;
-  color: var(--primary);
+  color: #f59e0b;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
