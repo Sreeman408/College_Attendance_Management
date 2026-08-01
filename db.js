@@ -112,8 +112,369 @@
   class CollegeCMSDB {
     constructor() {
       this.load();
-      this.migrateToHashedPasswords().catch(console.error);
+      this.migrateToHashedPasswords().then(() => {
+        this.initSupabaseSync().catch(console.error);
+      }).catch(console.error);
     }
+
+    async initSupabaseSync() {
+      if (!window.SupabaseConfig || !window.SupabaseConfig.isConfigured()) {
+        console.log('ℹ️ Running in Local Database Mode. Configure Supabase credentials in supabaseConfig.js for Cloud sync.');
+        return;
+      }
+      const client = window.SupabaseConfig.getClient();
+      if (!client) return;
+
+      try {
+        const { data: users, error } = await client.from('users').select('*');
+        if (error) {
+          console.warn('⚠️ Supabase connection warning:', error.message);
+          return;
+        }
+
+        if (!users || users.length === 0) {
+          console.log('⚡ Initializing Supabase cloud tables with baseline academic data...');
+          await this.seedSupabaseFromLocal(client);
+        } else {
+          console.log('🔄 Synchronizing database state from Supabase Cloud Database...');
+          await this.pullFromSupabase(client);
+        }
+      } catch (err) {
+        console.error('Supabase sync initialization error:', err);
+      }
+    }
+
+    async seedSupabaseFromLocal(client) {
+      if (!client) return;
+      try {
+        // 1. Departments
+        if (this.data.departments && this.data.departments.length > 0) {
+          await client.from('departments').upsert(this.data.departments);
+        }
+        // 2. Courses
+        if (this.data.courses && this.data.courses.length > 0) {
+          const coursesRows = this.data.courses.map(c => ({
+            id: c.id,
+            name: c.name,
+            code: c.code,
+            dept_id: c.deptId,
+            type: c.type || 'Lecture'
+          }));
+          await client.from('courses').upsert(coursesRows);
+        }
+        // 3. Users (Admin, Staff, Students, Parents)
+        const userRows = [];
+        const studentCourseRows = [];
+        const staffCourseRows = [];
+        const parentStudentRows = [];
+
+        if (this.data.admin) {
+          userRows.push({
+            id: this.data.admin.id || 'admin101',
+            role: 'admin',
+            name: this.data.admin.name,
+            login_id: this.data.admin.loginId,
+            password_hash: this.data.admin.password,
+            question: this.data.admin.question || "What is your mother's maiden name?",
+            answer_hash: this.data.admin.answer
+          });
+        }
+        (this.data.staff || []).forEach(st => {
+          userRows.push({
+            id: st.id,
+            role: 'staff',
+            name: st.name,
+            email: st.email,
+            dept_id: st.deptId,
+            login_id: st.loginId,
+            password_hash: st.password,
+            question: st.question || "What is your mother's maiden name?",
+            answer_hash: st.answer
+          });
+          (st.courses || []).forEach(cId => {
+            staffCourseRows.push({ staff_id: st.id, course_id: cId });
+          });
+        });
+        (this.data.students || []).forEach(s => {
+          userRows.push({
+            id: s.id,
+            role: 'student',
+            name: s.name,
+            email: s.email,
+            roll: s.roll,
+            dept_id: s.deptId,
+            login_id: s.loginId,
+            password_hash: s.password,
+            question: s.question || "What is your mother's maiden name?",
+            answer_hash: s.answer
+          });
+          (s.courses || []).forEach(cId => {
+            studentCourseRows.push({ student_id: s.id, course_id: cId });
+          });
+        });
+        (this.data.parents || []).forEach(p => {
+          userRows.push({
+            id: p.id,
+            role: 'parent',
+            name: p.name,
+            email: p.email,
+            login_id: p.loginId,
+            password_hash: p.password,
+            question: p.question || "What is your mother's maiden name?",
+            answer_hash: p.answer
+          });
+          const sIds = Array.isArray(p.studentIds) ? p.studentIds : (p.studentId ? [p.studentId] : []);
+          sIds.forEach(sId => {
+            parentStudentRows.push({ parent_id: p.id, student_id: sId });
+          });
+        });
+
+        if (userRows.length > 0) await client.from('users').upsert(userRows);
+        if (studentCourseRows.length > 0) await client.from('student_courses').upsert(studentCourseRows);
+        if (staffCourseRows.length > 0) await client.from('staff_courses').upsert(staffCourseRows);
+        if (parentStudentRows.length > 0) await client.from('parent_students').upsert(parentStudentRows);
+
+        // 4. Timetable
+        if (this.data.timetable && this.data.timetable.length > 0) {
+          const ttRows = this.data.timetable.map(t => ({
+            id: t.id,
+            day: t.day,
+            time: t.time,
+            course_id: t.courseId,
+            classroom: t.classroom,
+            staff_id: t.staffId
+          }));
+          await client.from('timetable').upsert(ttRows);
+        }
+
+        // 5. Attendance
+        if (this.data.attendance && this.data.attendance.length > 0) {
+          const attRows = this.data.attendance.map(a => ({
+            id: a.id,
+            date: a.date,
+            course_id: a.courseId,
+            student_id: a.studentId,
+            status: a.status
+          }));
+          await client.from('attendance').upsert(attRows);
+        }
+
+        // 6. Leave Requests
+        if (this.data.leaveRequests && this.data.leaveRequests.length > 0) {
+          const leaveRows = this.data.leaveRequests.map(l => ({
+            id: l.id,
+            student_id: l.studentId,
+            course_id: l.courseId,
+            date: l.date,
+            reason: l.reason,
+            status: l.status,
+            submitted_at: l.submittedAt
+          }));
+          await client.from('leave_requests').upsert(leaveRows);
+        }
+
+        // 7. Audit Logs
+        if (this.data.auditLogs && this.data.auditLogs.length > 0) {
+          const logRows = this.data.auditLogs.map(l => ({
+            id: l.id,
+            timestamp: l.timestamp,
+            user_id: l.userId,
+            user_name: l.userName,
+            role: l.role,
+            action: l.action,
+            details: l.details
+          }));
+          await client.from('audit_logs').upsert(logRows);
+        }
+
+        // 8. Settings
+        if (this.data.settings) {
+          const settingRows = Object.keys(this.data.settings).map(k => ({ key: k, value: String(this.data.settings[k]) }));
+          await client.from('settings').upsert(settingRows);
+        }
+
+        console.log('✅ Supabase Cloud Database successfully seeded!');
+      } catch (err) {
+        console.error('Error seeding Supabase database:', err);
+      }
+    }
+
+    async pullFromSupabase(client) {
+      if (!client) return;
+      try {
+        const [
+          { data: depts },
+          { data: courses },
+          { data: users },
+          { data: stdCourses },
+          { data: stfCourses },
+          { data: prtStudents },
+          { data: tt },
+          { data: att },
+          { data: leaves },
+          { data: logs },
+          { data: settings }
+        ] = await Promise.all([
+          client.from('departments').select('*'),
+          client.from('courses').select('*'),
+          client.from('users').select('*'),
+          client.from('student_courses').select('*'),
+          client.from('staff_courses').select('*'),
+          client.from('parent_students').select('*'),
+          client.from('timetable').select('*'),
+          client.from('attendance').select('*'),
+          client.from('leave_requests').select('*'),
+          client.from('audit_logs').select('*').order('timestamp', { ascending: false }),
+          client.from('settings').select('*')
+        ]);
+
+        if (depts) this.data.departments = depts.map(d => ({ id: d.id, name: d.name, code: d.code }));
+        if (courses) this.data.courses = courses.map(c => ({ id: c.id, name: c.name, code: c.code, deptId: c.dept_id, type: c.type || 'Lecture' }));
+
+        if (users) {
+          const adminObj = users.find(u => u.role === 'admin');
+          if (adminObj) {
+            this.data.admin = {
+              id: adminObj.id,
+              loginId: adminObj.login_id,
+              password: adminObj.password_hash,
+              name: adminObj.name,
+              question: adminObj.question,
+              answer: adminObj.answer_hash
+            };
+          }
+
+          const staffList = users.filter(u => u.role === 'staff').map(u => {
+            const myCourses = (stfCourses || []).filter(sc => sc.staff_id === u.id).map(sc => sc.course_id);
+            return {
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              deptId: u.dept_id,
+              courses: myCourses,
+              loginId: u.login_id,
+              password: u.password_hash,
+              question: u.question,
+              answer: u.answer_hash
+            };
+          });
+          if (staffList.length > 0) this.data.staff = staffList;
+
+          const studentList = users.filter(u => u.role === 'student').map(u => {
+            const myCourses = (stdCourses || []).filter(sc => sc.student_id === u.id).map(sc => sc.course_id);
+            return {
+              id: u.id,
+              name: u.name,
+              roll: u.roll,
+              email: u.email,
+              deptId: u.dept_id,
+              courses: myCourses,
+              loginId: u.login_id,
+              password: u.password_hash,
+              question: u.question,
+              answer: u.answer_hash
+            };
+          });
+          if (studentList.length > 0) this.data.students = studentList;
+
+          const parentList = users.filter(u => u.role === 'parent').map(u => {
+            const myStudents = (prtStudents || []).filter(ps => ps.parent_id === u.id).map(ps => ps.student_id);
+            return {
+              id: u.id,
+              name: u.name,
+              email: u.email,
+              loginId: u.login_id,
+              password: u.password_hash,
+              studentIds: myStudents,
+              question: u.question,
+              answer: u.answer_hash
+            };
+          });
+          if (parentList.length > 0) this.data.parents = parentList;
+        }
+
+        if (tt) {
+          this.data.timetable = tt.map(t => ({
+            id: t.id,
+            day: t.day,
+            time: t.time,
+            courseId: t.course_id,
+            classroom: t.classroom,
+            staffId: t.staff_id
+          }));
+        }
+
+        if (att) {
+          this.data.attendance = att.map(a => ({
+            id: a.id,
+            date: a.date,
+            courseId: a.course_id,
+            studentId: a.student_id,
+            status: a.status
+          }));
+        }
+
+        if (leaves) {
+          this.data.leaveRequests = leaves.map(l => ({
+            id: l.id,
+            studentId: l.student_id,
+            courseId: l.course_id,
+            date: l.date,
+            reason: l.reason,
+            status: l.status,
+            submittedAt: l.submitted_at
+          }));
+        }
+
+        if (logs) {
+          this.data.auditLogs = logs.map(l => ({
+            id: l.id,
+            timestamp: l.timestamp,
+            userId: l.user_id,
+            userName: l.user_name,
+            role: l.role,
+            action: l.action,
+            details: l.details
+          }));
+        }
+
+        if (settings) {
+          const settingsObj = {};
+          settings.forEach(s => {
+            settingsObj[s.key] = isNaN(Number(s.value)) ? s.value : Number(s.value);
+          });
+          if (Object.keys(settingsObj).length > 0) this.data.settings = settingsObj;
+        }
+
+        this.save();
+        console.log('✅ Supabase state synchronized into application.');
+      } catch (err) {
+        console.error('Error pulling from Supabase:', err);
+      }
+    }
+
+    async syncRecordToSupabase(table, record) {
+      if (!window.SupabaseConfig || !window.SupabaseConfig.isConfigured()) return;
+      const client = window.SupabaseConfig.getClient();
+      if (!client) return;
+      try {
+        await client.from(table).upsert(record);
+      } catch (e) {
+        console.warn(`Supabase upsert error on ${table}:`, e);
+      }
+    }
+
+    async deleteRecordFromSupabase(table, matchCol, matchVal) {
+      if (!window.SupabaseConfig || !window.SupabaseConfig.isConfigured()) return;
+      const client = window.SupabaseConfig.getClient();
+      if (!client) return;
+      try {
+        await client.from(table).delete().eq(matchCol, matchVal);
+      } catch (e) {
+        console.warn(`Supabase delete error on ${table}:`, e);
+      }
+    }
+
 
     async hashPassword(password) {
       if (!password) return '';
@@ -350,6 +711,15 @@
         this.data.auditLogs = this.data.auditLogs.slice(0, 200); // cap to recent 200 logs
       }
       this.save();
+      this.syncRecordToSupabase('audit_logs', {
+        id: logEntry.id,
+        timestamp: logEntry.timestamp,
+        user_id: logEntry.userId,
+        user_name: logEntry.userName,
+        role: logEntry.role,
+        action: logEntry.action,
+        details: logEntry.details
+      }).catch(console.warn);
     }
 
     getAuditLogs() {
