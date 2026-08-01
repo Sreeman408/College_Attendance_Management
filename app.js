@@ -360,12 +360,37 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('staff-login-form')?.addEventListener('submit', (e) => handleFormSubmit(e, 'staff'));
     document.getElementById('admin-login-form')?.addEventListener('submit', (e) => handleFormSubmit(e, 'admin'));
 
+    // Mobile Navigation Drawer Toggle & Overlay
+    const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+    const sidebarEl = document.querySelector('.sidebar');
+    const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+    if (mobileMenuToggle && sidebarEl) {
+      mobileMenuToggle.addEventListener('click', () => {
+        sidebarEl.classList.toggle('active');
+        if (sidebarOverlay) sidebarOverlay.classList.toggle('active');
+      });
+    }
+
+    if (sidebarOverlay && sidebarEl) {
+      sidebarOverlay.addEventListener('click', () => {
+        sidebarEl.classList.remove('active');
+        sidebarOverlay.classList.remove('active');
+      });
+    }
+
     // Sidebar navigation
     document.querySelectorAll('.sidebar .nav-link').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
         const tab = link.getAttribute('data-tab');
         setActiveTab(tab);
+
+        // Auto-close sidebar drawer on mobile after selection
+        if (sidebarEl && sidebarEl.classList.contains('active')) {
+          sidebarEl.classList.remove('active');
+          if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+        }
       });
     });
 

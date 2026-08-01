@@ -204,7 +204,8 @@
 
   <!-- ==================== 2. SECURE APPLICATION CONTAINER SHELL ==================== -->
   <div class="app-container hidden" id="app-container">
-    
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
     <!-- Mobile Bottom Navigation (Visible on mobile viewports only) -->
     <nav class="bottom-nav" id="bottom-nav" style="display: none;"></nav>
 
@@ -352,6 +353,10 @@
     <main class="main-panel">
       <!-- Top header -->
       <header class="top-header">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle Navigation">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+
         <div class="header-title-area">
           <h1 class="page-title" id="page-title">-</h1>
           <span class="page-subtitle" id="page-subtitle">-</span>
