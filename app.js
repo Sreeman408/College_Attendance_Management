@@ -107,7 +107,23 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupSecurityListeners();
     setupKeyboardShortcuts();
+    setupOfflineListeners();
     checkActiveSession();
+  }
+
+  function setupOfflineListeners() {
+    const updateOnlineStatus = () => {
+      const banner = document.getElementById('offline-banner');
+      if (!banner) return;
+      if (!navigator.onLine) {
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
+      }
+    };
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
   }
 
   function registerServiceWorker() {
@@ -801,6 +817,7 @@ document.addEventListener('DOMContentLoaded', () => {
       case 'parent-dashboard': renderParentDashboard(); break;
     }
   }
+  window.renderActiveView = renderActiveView;
 
   // ==========================================
   // --- ADMIN RENDER ROUTINES ---

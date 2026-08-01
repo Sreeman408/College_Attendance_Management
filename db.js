@@ -118,14 +118,14 @@
     }
 
     async initSupabaseSync() {
-      if (!window.SupabaseConfig || !window.SupabaseConfig.isConfigured()) {
-        console.log('ℹ️ Running in Local Database Mode. Configure Supabase credentials in supabaseConfig.js for Cloud sync.');
-        return;
-      }
+      if (!window.SupabaseConfig || !window.SupabaseConfig.isConfigured()) return;
       const client = window.SupabaseConfig.getClient();
       if (!client) return;
 
       try {
+        // Run one-time migration if legacy localStorage key is present
+        await this.migrateLocalToSupabase();
+
         const { data: users, error } = await client.from('users').select('*');
         if (error) {
           console.warn('⚠️ Supabase connection warning:', error.message);
@@ -139,10 +139,66 @@
           console.log('🔄 Synchronizing database state from Supabase Cloud Database...');
           await this.pullFromSupabase(client);
         }
+
+        // Setup selective Realtime listeners on attendance, leave_requests, timetable
+        this.setupRealtimeSubscriptions(client);
+
       } catch (err) {
         console.error('Supabase sync initialization error:', err);
       }
     }
+
+    setupRealtimeSubscriptions(client) {
+      if (!client) return;
+      try {
+        client
+          .channel('schema-db-changes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' }, (payload) => {
+            console.log('⚡ Live Realtime Attendance update received:', payload);
+            this.pullFromSupabase(client).then(() => {
+              if (typeof window.renderActiveView === 'function') window.renderActiveView();
+            });
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'leave_requests' }, (payload) => {
+            console.log('⚡ Live Realtime Leave Request update received:', payload);
+            this.pullFromSupabase(client).then(() => {
+              if (typeof window.renderActiveView === 'function') window.renderActiveView();
+            });
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'timetable' }, (payload) => {
+            console.log('⚡ Live Realtime Timetable update received:', payload);
+            this.pullFromSupabase(client).then(() => {
+              if (typeof window.renderActiveView === 'function') window.renderActiveView();
+            });
+          })
+          .subscribe();
+      } catch (e) {
+        console.warn('Realtime subscription error:', e);
+      }
+    }
+
+    async migrateLocalToSupabase() {
+      const legacyKey = 'annamalai_cms_db';
+      const stored = localStorage.getItem(legacyKey);
+      if (!stored) return;
+
+      try {
+        console.log('📦 Found legacy localStorage data. Performing one-time migration to Supabase Cloud...');
+        const localData = JSON.parse(stored);
+        const client = window.SupabaseConfig.getClient();
+        if (client) {
+          const tempBackup = this.data;
+          this.data = localData;
+          await this.seedSupabaseFromLocal(client);
+          this.data = tempBackup;
+        }
+        localStorage.removeItem(legacyKey);
+        console.log('🧹 Legacy localStorage database cleared. Pure Supabase is active!');
+      } catch (e) {
+        console.error('Migration error:', e);
+      }
+    }
+
 
     async seedSupabaseFromLocal(client) {
       if (!client) return;
@@ -606,77 +662,17 @@
     }
 
     load() {
-      const stored = localStorage.getItem(DB_KEY);
-      if (stored) {
-        try {
-          this.data = JSON.parse(stored);
-          // Ensure arrays exist for newly added features
-          this.data.leaveRequests = this.data.leaveRequests || [];
-          this.data.substitutes = this.data.substitutes || [];
-          this.data.cancelledClasses = this.data.cancelledClasses || [];
-          this.data.auditLogs = this.data.auditLogs || [];
-        } catch (e) {
-          console.error("Local database corrupted, resetting to defaults", e);
-          this.data = JSON.parse(JSON.stringify(DEFAULT_DB));
-          this.save();
-        }
-      } else {
-        this.data = JSON.parse(JSON.stringify(DEFAULT_DB));
-        this.save();
-      }
-
+      // Pure Supabase Architecture: In-memory baseline data initialized from DEFAULT_DB before cloud pull
+      this.data = JSON.parse(JSON.stringify(DEFAULT_DB));
       this.migrateTimetableData();
     }
 
-    migrateTimetableData() {
-      if (!Array.isArray(this.data.timetable)) {
-        this.data.timetable = [];
-        return;
-      }
-      let changed = false;
-      this.data.timetable.forEach((slot, idx) => {
-        if (!slot.id) {
-          slot.id = 'tt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-          changed = true;
-        }
-
-        // Migrate courseCode/courseName -> courseId
-        if (!slot.courseId && slot.courseCode) {
-          const course = (this.data.courses || []).find(c => 
-            c.code.toLowerCase() === slot.courseCode.toLowerCase() ||
-            (slot.courseName && c.name.toLowerCase() === slot.courseName.toLowerCase())
-          );
-          if (course) {
-            slot.courseId = course.id;
-            changed = true;
-          }
-        }
-
-        // Migrate professor -> staffId
-        if (!slot.staffId && slot.professor) {
-          const staff = (this.data.staff || []).find(st => 
-            st.name.toLowerCase() === slot.professor.toLowerCase() ||
-            (st.loginId && st.loginId.toLowerCase() === slot.professor.toLowerCase())
-          );
-          if (staff) {
-            slot.staffId = staff.id;
-            changed = true;
-          }
-        }
-      });
-
-      if (changed) {
-        this.save();
-      }
-    }
-
     save() {
-      localStorage.setItem(DB_KEY, JSON.stringify(this.data));
+      // Pure Supabase Architecture: Persistence is handled directly by Supabase PostgreSQL cloud database tables.
     }
 
     reset() {
       this.data = JSON.parse(JSON.stringify(DEFAULT_DB));
-      this.save();
     }
 
     // --- TRANSACTIONAL SUPPORT & ROLLBACK ---
