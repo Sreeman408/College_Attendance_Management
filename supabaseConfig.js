@@ -6,8 +6,8 @@
 (function (window) {
   // 1. SUPABASE PROJECT CREDENTIALS
   // Replace the placeholder values below with your actual project credentials from https://supabase.com
-  const SUPABASE_URL = "https://your-project-id.supabase.co";
-  const SUPABASE_ANON_KEY = "your-anon-public-api-key-here";
+  const SUPABASE_URL = "https://tysutoqyagpawuklpaxj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5c3V0b3F5YWdwYXd1a2xwYXhqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1NTU3MTIsImV4cCI6MjEwMTEzMTcxMn0.CZYjC7wiUaM9CBHrp9qKxw4ZQ8SYe8n1tISlS7XxbJI";
 
   // Helper check to determine if credentials have been replaced with valid project values
   function isConfigured() {
