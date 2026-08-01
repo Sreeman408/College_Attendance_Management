@@ -383,9 +383,11 @@ body {
 .app-container {
   display: flex;
   width: 100%;
+  height: auto;
   min-height: 100vh;
   min-height: 100dvh;
   position: relative;
+  overflow: visible;
 }
 
 .app-container.active {
@@ -554,9 +556,12 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  height: auto;
   min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--bg-app);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .top-header {
@@ -642,7 +647,10 @@ body {
 /* Content Body */
 .content-body {
   flex-grow: 1;
-  padding: 32px 32px 80px 32px;
+  min-height: 0;
+  padding: 32px 32px 140px 32px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .view-panel {
@@ -1650,8 +1658,10 @@ body {
   .app-container {
     display: block;
     width: 100%;
+    height: auto;
     min-height: 100vh;
     min-height: 100dvh;
+    overflow: visible;
   }
 
   .sidebar {
@@ -1717,12 +1727,18 @@ body {
   .main-panel {
     display: block;
     width: 100%;
+    height: auto;
     min-height: 100vh;
     min-height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .content-body {
-    padding: 16px 12px 100px 12px;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 12px 140px 12px;
   }
 
   /* 3. Grid Collapse & Cards */
